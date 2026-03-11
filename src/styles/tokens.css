@@ -1,0 +1,399 @@
+/* ==========================================================================
+   Jira-ffic Reports — ADS Design Tokens
+   Based on Atlassian Design System Foundations
+   ========================================================================== */
+
+/* ---------- Light Mode (Default) ---------- */
+:root {
+  /* Color Scheme */
+  color-scheme: light;
+
+  /* ── Typography ─────────────────────────────────── */
+  --ds-font-family-body: "Atlassian Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Ubuntu, "Helvetica Neue", sans-serif;
+  --ds-font-family-code: "Atlassian Mono", ui-monospace, Menlo, "Segoe UI Mono", "Ubuntu Mono", monospace;
+  --ds-font-family-heading: var(--ds-font-family-body);
+
+  /* Font Weights */
+  --ds-font-weight-regular: 400;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-font-weight-bold: 700;
+
+  /* Heading Sizes */
+  --ds-font-heading-xxlarge: 700 2.1875rem/2.5rem var(--ds-font-family-heading);
+  --ds-font-heading-xlarge: 700 1.8125rem/2.25rem var(--ds-font-family-heading);
+  --ds-font-heading-large: 700 1.5rem/2rem var(--ds-font-family-heading);
+  --ds-font-heading-medium: 700 1.25rem/1.75rem var(--ds-font-family-heading);
+  --ds-font-heading-small: 600 1rem/1.5rem var(--ds-font-family-heading);
+  --ds-font-heading-xsmall: 600 0.875rem/1.25rem var(--ds-font-family-heading);
+  --ds-font-heading-xxsmall: 600 0.75rem/1rem var(--ds-font-family-heading);
+
+  /* Body Sizes */
+  --ds-font-body-large: 400 1rem/1.5rem var(--ds-font-family-body);
+  --ds-font-body: 400 0.875rem/1.25rem var(--ds-font-family-body);
+  --ds-font-body-small: 400 0.6875rem/1rem var(--ds-font-family-body);
+
+  /* Code */
+  --ds-font-code: 400 0.875em/1 var(--ds-font-family-code);
+
+  /* ── Spacing (8px base) ─────────────────────────── */
+  --ds-space-0: 0px;
+  --ds-space-025: 2px;
+  --ds-space-050: 4px;
+  --ds-space-075: 6px;
+  --ds-space-100: 8px;
+  --ds-space-150: 12px;
+  --ds-space-200: 16px;
+  --ds-space-250: 20px;
+  --ds-space-300: 24px;
+  --ds-space-400: 32px;
+  --ds-space-500: 40px;
+  --ds-space-600: 48px;
+  --ds-space-800: 64px;
+  --ds-space-1000: 80px;
+
+  /* ── Border Radius ──────────────────────────────── */
+  --ds-radius-050: 2px;
+  --ds-radius-100: 4px;
+  --ds-radius-200: 8px;
+  --ds-radius-300: 12px;
+  --ds-radius-400: 16px;
+  --ds-radius-round: 50%;
+
+  /* ── Transitions ────────────────────────────────── */
+  --ds-duration-fast: 100ms;
+  --ds-duration-normal: 200ms;
+  --ds-duration-slow: 350ms;
+  --ds-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ── Text Colors ────────────────────────────────── */
+  --ds-text: #292a2e;
+  --ds-text-subtle: #626f86;
+  --ds-text-subtlest: #8590a2;
+  --ds-text-disabled: #bfbfc4;
+  --ds-text-inverse: #ffffff;
+  --ds-text-brand: #0052cc;
+  --ds-text-selected: #0052cc;
+  --ds-text-danger: #ae2a19;
+  --ds-text-warning: #a54800;
+  --ds-text-success: #216e4e;
+  --ds-text-discovery: #5e4db2;
+  --ds-text-information: #0055cc;
+
+  /* ── Link Colors ────────────────────────────────── */
+  --ds-link: #1868db;
+  --ds-link-pressed: #1558bc;
+  --ds-link-visited: #803fa5;
+
+  /* ── Icon Colors ────────────────────────────────── */
+  --ds-icon: #44546f;
+  --ds-icon-subtle: #626f86;
+  --ds-icon-inverse: #ffffff;
+  --ds-icon-disabled: #bfbfc4;
+  --ds-icon-brand: #0052cc;
+  --ds-icon-selected: #0052cc;
+  --ds-icon-danger: #e34935;
+  --ds-icon-warning: #d97008;
+  --ds-icon-success: #22a06b;
+  --ds-icon-discovery: #8270db;
+  --ds-icon-information: #1d7afc;
+
+  /* ── Background Colors ──────────────────────────── */
+  --ds-surface: #ffffff;
+  --ds-surface-hovered: #f1f2f4;
+  --ds-surface-pressed: #dcdfe4;
+  --ds-surface-overlay: #ffffff;
+  --ds-surface-raised: #ffffff;
+  --ds-surface-sunken: #f7f8f9;
+
+  --ds-background-neutral: #0515240f;
+  --ds-background-neutral-hovered: #05152414;
+  --ds-background-neutral-pressed: #0515241f;
+  --ds-background-neutral-subtle: transparent;
+  --ds-background-neutral-subtle-hovered: #0515240a;
+  --ds-background-neutral-subtle-pressed: #05152414;
+  --ds-background-neutral-bold: #44546f;
+  --ds-background-neutral-bold-hovered: #2c3e5d;
+  --ds-background-neutral-bold-pressed: #172b4d;
+
+  --ds-background-brand-bold: #0052cc;
+  --ds-background-brand-bold-hovered: #0747a6;
+  --ds-background-brand-bold-pressed: #003884;
+  --ds-background-brand-subtlest: #e9f2ff;
+  --ds-background-brand-subtlest-hovered: #cce0ff;
+
+  --ds-background-selected: #e9f2ff;
+  --ds-background-selected-hovered: #cce0ff;
+  --ds-background-selected-pressed: #85b8ff;
+  --ds-background-selected-bold: #0052cc;
+  --ds-background-selected-bold-hovered: #0747a6;
+
+  --ds-background-danger: #ffedeb;
+  --ds-background-danger-hovered: #ffd2cc;
+  --ds-background-danger-pressed: #ff9c8f;
+  --ds-background-danger-bold: #ca3521;
+  --ds-background-danger-bold-hovered: #ae2a19;
+  --ds-background-danger-bold-pressed: #601e16;
+
+  --ds-background-warning: #fff7d6;
+  --ds-background-warning-hovered: #f8e6a0;
+  --ds-background-warning-pressed: #f5cd47;
+  --ds-background-warning-bold: #e2b203;
+  --ds-background-warning-bold-hovered: #cf9f02;
+
+  --ds-background-success: #dffcf0;
+  --ds-background-success-hovered: #baf3db;
+  --ds-background-success-pressed: #7ee2b8;
+  --ds-background-success-bold: #1f845a;
+  --ds-background-success-bold-hovered: #216e4e;
+
+  --ds-background-discovery: #f3f0ff;
+  --ds-background-discovery-hovered: #dfd8fd;
+  --ds-background-discovery-pressed: #b8acf6;
+  --ds-background-discovery-bold: #6e5dc6;
+  --ds-background-discovery-bold-hovered: #5e4db2;
+
+  --ds-background-information: #e9f2ff;
+  --ds-background-information-hovered: #cce0ff;
+  --ds-background-information-pressed: #85b8ff;
+  --ds-background-information-bold: #0065ff;
+
+  --ds-background-input: #ffffff;
+  --ds-background-input-hovered: #f7f8f9;
+  --ds-background-input-pressed: #f1f2f4;
+
+  --ds-background-disabled: #0515240a;
+
+  /* ── Border Colors ──────────────────────────────── */
+  --ds-border: #0b120e24;
+  --ds-border-bold: #758195;
+  --ds-border-focused: #388bff;
+  --ds-border-selected: #0052cc;
+  --ds-border-input: #8590a2;
+  --ds-border-disabled: #0515240a;
+  --ds-border-brand: #0052cc;
+  --ds-border-danger: #e34935;
+  --ds-border-warning: #d97008;
+  --ds-border-success: #22a06b;
+  --ds-border-discovery: #8270db;
+  --ds-border-information: #1d7afc;
+
+  /* ── Elevation (Shadows) ────────────────────────── */
+  --ds-shadow-raised: 0px 1px 1px #091e4240, 0px 0px 1px #091e424f;
+  --ds-shadow-overlay: 0px 8px 12px #091e4226, 0px 0px 1px #091e424f;
+  --ds-shadow-overflow: 0px 0px 8px #091e4240, 0px 0px 1px #091e424f;
+
+  /* ── Opacity ────────────────────────────────────── */
+  --ds-opacity-loading: 0.2;
+  --ds-opacity-disabled: 0.4;
+
+  /* ── Accent Colors (Lozenges/Badges) ───────────── */
+  --ds-background-accent-blue-subtlest: #e9f2ff;
+  --ds-background-accent-blue-subtler: #cce0ff;
+  --ds-background-accent-blue-subtle: #579dff;
+  --ds-background-accent-blue-bolder: #0055cc;
+
+  --ds-background-accent-green-subtlest: #dffcf0;
+  --ds-background-accent-green-subtler: #baf3db;
+  --ds-background-accent-green-subtle: #4bce97;
+  --ds-background-accent-green-bolder: #1f845a;
+
+  --ds-background-accent-orange-subtlest: #fff4e5;
+  --ds-background-accent-orange-subtler: #ffe2bd;
+  --ds-background-accent-orange-subtle: #faa53d;
+  --ds-background-accent-orange-bolder: #b65c02;
+
+  --ds-background-accent-red-subtlest: #ffedeb;
+  --ds-background-accent-red-subtler: #ffd2cc;
+  --ds-background-accent-red-subtle: #f87462;
+  --ds-background-accent-red-bolder: #ca3521;
+
+  --ds-background-accent-purple-subtlest: #f3f0ff;
+  --ds-background-accent-purple-subtler: #dfd8fd;
+  --ds-background-accent-purple-subtle: #9f8fef;
+  --ds-background-accent-purple-bolder: #6e5dc6;
+
+  --ds-background-accent-teal-subtlest: #e3fafc;
+  --ds-background-accent-teal-subtler: #c1f0f5;
+  --ds-background-accent-teal-subtle: #60c6d2;
+  --ds-background-accent-teal-bolder: #1d7f8c;
+
+  --ds-background-accent-yellow-subtlest: #fff7d6;
+  --ds-background-accent-yellow-subtler: #f8e6a0;
+  --ds-background-accent-yellow-subtle: #e2b203;
+  --ds-background-accent-yellow-bolder: #946f00;
+
+  /* Text accents */
+  --ds-text-accent-blue: #0055cc;
+  --ds-text-accent-green: #216e4e;
+  --ds-text-accent-orange: #a54800;
+  --ds-text-accent-red: #ae2a19;
+  --ds-text-accent-purple: #5e4db2;
+  --ds-text-accent-teal: #206b74;
+}
+
+/* ---------- Dark Mode ---------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Text */
+  --ds-text: #dee4ea;
+  --ds-text-subtle: #9fadbc;
+  --ds-text-subtlest: #8c9bab;
+  --ds-text-disabled: #bfbfc4;
+  --ds-text-inverse: #1d2125;
+  --ds-text-brand: #579dff;
+  --ds-text-selected: #579dff;
+  --ds-text-danger: #ff9c8f;
+  --ds-text-warning: #f5cd47;
+  --ds-text-success: #7ee2b8;
+  --ds-text-discovery: #b8acf6;
+  --ds-text-information: #85b8ff;
+
+  /* Links */
+  --ds-link: #579dff;
+  --ds-link-pressed: #85b8ff;
+  --ds-link-visited: #b8acf6;
+
+  /* Icons */
+  --ds-icon: #9fadbc;
+  --ds-icon-subtle: #8c9bab;
+  --ds-icon-inverse: #1d2125;
+  --ds-icon-disabled: #596773;
+  --ds-icon-brand: #579dff;
+  --ds-icon-selected: #579dff;
+  --ds-icon-danger: #ff9c8f;
+  --ds-icon-warning: #f5cd47;
+  --ds-icon-success: #7ee2b8;
+  --ds-icon-discovery: #b8acf6;
+  --ds-icon-information: #85b8ff;
+
+  /* Surfaces */
+  --ds-surface: #1d2125;
+  --ds-surface-hovered: #282e33;
+  --ds-surface-pressed: #2c333a;
+  --ds-surface-overlay: #282e33;
+  --ds-surface-raised: #22272b;
+  --ds-surface-sunken: #161a1d;
+
+  --ds-background-neutral: #a1bdd914;
+  --ds-background-neutral-hovered: #a6c5e229;
+  --ds-background-neutral-pressed: #bfdbf847;
+  --ds-background-neutral-subtle: transparent;
+  --ds-background-neutral-subtle-hovered: #a1bdd914;
+  --ds-background-neutral-subtle-pressed: #a6c5e229;
+  --ds-background-neutral-bold: #9fadbc;
+  --ds-background-neutral-bold-hovered: #b6c2cf;
+  --ds-background-neutral-bold-pressed: #c7d1db;
+
+  --ds-background-brand-bold: #579dff;
+  --ds-background-brand-bold-hovered: #85b8ff;
+  --ds-background-brand-bold-pressed: #cce0ff;
+  --ds-background-brand-subtlest: #09326c;
+  --ds-background-brand-subtlest-hovered: #0055cc;
+
+  --ds-background-selected: #09326c;
+  --ds-background-selected-hovered: #0055cc;
+  --ds-background-selected-pressed: #0747a6;
+  --ds-background-selected-bold: #579dff;
+  --ds-background-selected-bold-hovered: #85b8ff;
+
+  --ds-background-danger: #42221f;
+  --ds-background-danger-hovered: #5d1f1a;
+  --ds-background-danger-pressed: #ae2a19;
+  --ds-background-danger-bold: #f87462;
+  --ds-background-danger-bold-hovered: #ff9c8f;
+  --ds-background-danger-bold-pressed: #ffd2cc;
+
+  --ds-background-warning: #332e1b;
+  --ds-background-warning-hovered: #533f04;
+  --ds-background-warning-pressed: #7f5f01;
+  --ds-background-warning-bold: #e2b203;
+  --ds-background-warning-bold-hovered: #f5cd47;
+
+  --ds-background-success: #1c3329;
+  --ds-background-success-hovered: #164b35;
+  --ds-background-success-pressed: #216e4e;
+  --ds-background-success-bold: #4bce97;
+  --ds-background-success-bold-hovered: #7ee2b8;
+
+  --ds-background-discovery: #2b2343;
+  --ds-background-discovery-hovered: #352c63;
+  --ds-background-discovery-pressed: #5e4db2;
+  --ds-background-discovery-bold: #9f8fef;
+  --ds-background-discovery-bold-hovered: #b8acf6;
+
+  --ds-background-information: #09326c;
+  --ds-background-information-hovered: #0055cc;
+  --ds-background-information-pressed: #0747a6;
+  --ds-background-information-bold: #579dff;
+
+  --ds-background-input: #22272b;
+  --ds-background-input-hovered: #282e33;
+  --ds-background-input-pressed: #2c333a;
+
+  --ds-background-disabled: #a1bdd914;
+
+  /* Borders */
+  --ds-border: #a6c5e229;
+  --ds-border-bold: #738496;
+  --ds-border-focused: #579dff;
+  --ds-border-selected: #579dff;
+  --ds-border-input: #738496;
+  --ds-border-disabled: #a1bdd914;
+  --ds-border-brand: #579dff;
+  --ds-border-danger: #f87462;
+  --ds-border-warning: #f5cd47;
+  --ds-border-success: #4bce97;
+  --ds-border-discovery: #9f8fef;
+  --ds-border-information: #579dff;
+
+  /* Shadows */
+  --ds-shadow-raised: 0px 1px 1px #03040480, 0px 0px 1px #03040480;
+  --ds-shadow-overlay: 0px 8px 12px #0304044f, 0px 0px 1px #03040480;
+  --ds-shadow-overflow: 0px 0px 8px #0304044f, 0px 0px 1px #03040480;
+
+  /* Accents */
+  --ds-background-accent-blue-subtlest: #09326c;
+  --ds-background-accent-blue-subtler: #0055cc;
+  --ds-background-accent-blue-subtle: #0747a6;
+  --ds-background-accent-blue-bolder: #579dff;
+
+  --ds-background-accent-green-subtlest: #1c3329;
+  --ds-background-accent-green-subtler: #164b35;
+  --ds-background-accent-green-subtle: #216e4e;
+  --ds-background-accent-green-bolder: #4bce97;
+
+  --ds-background-accent-orange-subtlest: #332e1b;
+  --ds-background-accent-orange-subtler: #533f04;
+  --ds-background-accent-orange-subtle: #7f5f01;
+  --ds-background-accent-orange-bolder: #faa53d;
+
+  --ds-background-accent-red-subtlest: #42221f;
+  --ds-background-accent-red-subtler: #5d1f1a;
+  --ds-background-accent-red-subtle: #ae2a19;
+  --ds-background-accent-red-bolder: #f87462;
+
+  --ds-background-accent-purple-subtlest: #2b2343;
+  --ds-background-accent-purple-subtler: #352c63;
+  --ds-background-accent-purple-subtle: #5e4db2;
+  --ds-background-accent-purple-bolder: #9f8fef;
+
+  --ds-background-accent-teal-subtlest: #1e3137;
+  --ds-background-accent-teal-subtler: #1d474c;
+  --ds-background-accent-teal-subtle: #206b74;
+  --ds-background-accent-teal-bolder: #60c6d2;
+
+  --ds-background-accent-yellow-subtlest: #332e1b;
+  --ds-background-accent-yellow-subtler: #533f04;
+  --ds-background-accent-yellow-subtle: #7f5f01;
+  --ds-background-accent-yellow-bolder: #e2b203;
+
+  /* Text accents */
+  --ds-text-accent-blue: #579dff;
+  --ds-text-accent-green: #4bce97;
+  --ds-text-accent-orange: #faa53d;
+  --ds-text-accent-red: #f87462;
+  --ds-text-accent-purple: #9f8fef;
+  --ds-text-accent-teal: #60c6d2;
+}

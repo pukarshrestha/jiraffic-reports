@@ -1,0 +1,65 @@
+/**
+ * Jira-ffic Reports — Main Entry Point
+ */
+
+import './styles/tokens.css';
+import './styles/reset.css';
+import './styles/components.css';
+import './styles/layout.css';
+
+import { initTheme } from './utils/theme.js';
+import { registerRoute, initRouter, navigate } from './utils/router.js';
+import { isLoggedIn } from './services/auth.js';
+import { renderLogin } from './views/login.js';
+import { renderDashboard } from './views/dashboard.js';
+import { renderReport } from './views/report.js';
+
+// Initialize theme
+initTheme();
+
+// Register routes
+registerRoute('/login', renderLogin);
+registerRoute('/dashboard', () => {
+  if (!isLoggedIn()) return navigate('/login');
+  renderDashboard();
+});
+
+// Report routes — support /report/:type and /report/:type/:projectKey
+registerRoute('/report/velocity', () => renderReport('velocity'));
+registerRoute('/report/distribution', () => renderReport('distribution'));
+registerRoute('/report/workload', () => renderReport('workload'));
+registerRoute('/report/trend', () => renderReport('trend'));
+registerRoute('/report/jql', () => renderReport('jql'));
+
+// Override the router to handle dynamic report routes
+const originalHashHandler = () => {
+  const hash = window.location.hash.slice(1) || '/login';
+
+  // Check for /report/:type/:projectKey pattern
+  const reportMatch = hash.match(/^\/report\/(\w+)\/(.+)$/);
+  if (reportMatch) {
+    const [, type, projectKey] = reportMatch;
+    if (!isLoggedIn()) return navigate('/login');
+    renderReport(type, projectKey);
+    return;
+  }
+
+  // Check for /report/:projectKey pattern (from dashboard project click)
+  const projectMatch = hash.match(/^\/report\/([A-Z][A-Z0-9_-]+)$/);
+  if (projectMatch && !['velocity', 'distribution', 'workload', 'trend', 'jql'].includes(projectMatch[1])) {
+    // This is a project key, redirect to distribution by default
+    if (!isLoggedIn()) return navigate('/login');
+    renderReport('distribution', projectMatch[1]);
+    return;
+  }
+};
+
+window.addEventListener('hashchange', originalHashHandler);
+
+// Initialize router
+initRouter();
+
+// Also handle the dynamic routes on initial load
+if (window.location.hash) {
+  originalHashHandler();
+}
