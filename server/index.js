@@ -18,7 +18,7 @@ app.use(express.json());
  * Proxy handler for Jira REST API requests
  * Reads Jira credentials from custom headers and forwards to Jira Cloud.
  */
-app.all('/api/jira/*', async (req, res) => {
+app.all('/api/jira/{*path}', async (req, res) => {
   const jiraUrl = req.headers['x-jira-url'];
   const email = req.headers['x-jira-email'];
   const token = req.headers['x-jira-token'];
@@ -28,7 +28,7 @@ app.all('/api/jira/*', async (req, res) => {
   }
 
   // Extract the path after /api/jira/
-  const jiraPath = req.params[0];
+  const jiraPath = req.params.path;
 
   // Determine if this is an agile API or standard REST API
   const isAgileApi = ['board', 'sprint'].some(p => jiraPath.startsWith(p));
