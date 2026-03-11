@@ -28,7 +28,9 @@ app.all('/api/jira/{*path}', async (req, res) => {
   }
 
   // Extract the path after /api/jira/
-  const jiraPath = req.params.path;
+  // Express 5 returns wildcard params as an array
+  const rawPath = req.params.path;
+  const jiraPath = Array.isArray(rawPath) ? rawPath.join('/') : rawPath;
 
   // Determine if this is an agile API or standard REST API
   const isAgileApi = ['board', 'sprint'].some(p => jiraPath.startsWith(p));
