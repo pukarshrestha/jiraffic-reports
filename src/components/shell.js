@@ -55,6 +55,10 @@ export function renderAppShell(container, activeView = 'dashboard') {
               <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
               Created vs Resolved
             </button>
+            <button class="sidebar-item ${activeView === 'worklog' ? 'active' : ''}" data-nav="report/worklog">
+              <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Work Log
+            </button>
           </div>
 
           <div class="sidebar-section">

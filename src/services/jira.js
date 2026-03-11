@@ -47,30 +47,33 @@ export function getProject(projectKey) {
   return jiraFetch(`/project/${projectKey}`);
 }
 
-/** Search issues with JQL */
+/** Search issues with JQL (uses new /search/jql endpoint) */
 export async function searchIssues(jql, options = {}) {
-  const { startAt = 0, maxResults = 50, fields = '' } = options;
+  const { maxResults = 50, fields = '', nextPageToken = '' } = options;
   const params = new URLSearchParams({
     jql,
-    startAt: startAt.toString(),
     maxResults: maxResults.toString(),
   });
   if (fields) params.set('fields', fields);
-  return jiraFetch(`/search?${params}`);
+  if (nextPageToken) params.set('nextPageToken', nextPageToken);
+  return jiraFetch(`/search/jql?${params}`);
 }
 
-/** Get all issues matching JQL (handles pagination) */
+/** Get all issues matching JQL (handles nextPageToken pagination) */
 export async function searchAllIssues(jql, fields) {
   const allIssues = [];
-  let startAt = 0;
-  const maxResults = 100;
-  let total = Infinity;
+  let nextPageToken = '';
+  let hasMore = true;
 
-  while (startAt < total) {
-    const data = await searchIssues(jql, { startAt, maxResults, fields });
-    total = data.total;
-    allIssues.push(...data.issues);
-    startAt += maxResults;
+  while (hasMore) {
+    const data = await searchIssues(jql, { maxResults: 100, fields, nextPageToken });
+    allIssues.push(...(data.issues || []));
+
+    if (data.nextPageToken) {
+      nextPageToken = data.nextPageToken;
+    } else {
+      hasMore = false;
+    }
 
     // Safety limit
     if (allIssues.length > 2000) break;
@@ -111,4 +114,22 @@ export function getIssueTypes() {
 /** Get issue priorities */
 export function getPriorities() {
   return jiraFetch('/priority');
+}
+
+/** Get worklogs for a specific issue */
+export async function getIssueWorklogs(issueKey) {
+  const data = await jiraFetch(`/issue/${issueKey}/worklog?maxResults=1000`);
+  return data.worklogs || [];
+}
+
+/** Search for users (for the multi-user picker) */
+export async function searchUsers(query) {
+  const params = new URLSearchParams({ query, maxResults: '20' });
+  return jiraFetch(`/user/search?${params}`);
+}
+
+/** Get all accessible users (for assignable user search) */
+export async function findAssignableUsers(query = '') {
+  const params = new URLSearchParams({ query, maxResults: '20' });
+  return jiraFetch(`/user/search?${params}`);
 }

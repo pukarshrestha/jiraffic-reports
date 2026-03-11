@@ -13,6 +13,7 @@ import { isLoggedIn } from './services/auth.js';
 import { renderLogin } from './views/login.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderReport } from './views/report.js';
+import { renderWorkLog } from './views/worklog.js';
 
 // Initialize theme
 initTheme();
@@ -30,6 +31,10 @@ registerRoute('/report/distribution', () => renderReport('distribution'));
 registerRoute('/report/workload', () => renderReport('workload'));
 registerRoute('/report/trend', () => renderReport('trend'));
 registerRoute('/report/jql', () => renderReport('jql'));
+registerRoute('/report/worklog', () => {
+  if (!isLoggedIn()) return navigate('/login');
+  renderWorkLog();
+});
 
 // Override the router to handle dynamic report routes
 const originalHashHandler = () => {
@@ -46,7 +51,7 @@ const originalHashHandler = () => {
 
   // Check for /report/:projectKey pattern (from dashboard project click)
   const projectMatch = hash.match(/^\/report\/([A-Z][A-Z0-9_-]+)$/);
-  if (projectMatch && !['velocity', 'distribution', 'workload', 'trend', 'jql'].includes(projectMatch[1])) {
+  if (projectMatch && !['velocity', 'distribution', 'workload', 'trend', 'jql', 'worklog'].includes(projectMatch[1])) {
     // This is a project key, redirect to distribution by default
     if (!isLoggedIn()) return navigate('/login');
     renderReport('distribution', projectMatch[1]);
