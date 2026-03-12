@@ -30,12 +30,12 @@ export async function renderReport(reportType) {
 /* ── JQL Query View ──────────────────────────────── */
 function renderJQLView(content) {
   content.innerHTML = `
-    <div class="page-header">
+    <div class="page-header" id="jql-header">
       <h1 class="page-title">JQL Query</h1>
       <p class="page-subtitle">Run custom JQL queries and view results</p>
     </div>
 
-    <div class="card" style="margin-bottom: var(--ds-space-300);">
+    <div class="card" id="jql-query-input" style="margin-bottom: var(--ds-space-300);">
       <div class="form-group">
         <label class="form-label" for="jql-input">JQL Query</label>
         <div style="display: flex; gap: var(--ds-space-100);">
@@ -84,10 +84,10 @@ async function executeJQL(jql) {
     }
 
     resultsDiv.innerHTML = `
-      <div style="margin-bottom: var(--ds-space-150); font: var(--ds-font-body-small); color: var(--ds-text-subtle);">
+      <div id="jql-results-summary" style="margin-bottom: var(--ds-space-150); font: var(--ds-font-body-small); color: var(--ds-text-subtle);">
         Showing ${issues.length} of ${result.total || issues.length} results
       </div>
-      <div class="table-container">
+      <div class="table-container" id="jql-results-table">
         <table class="table">
           <thead>
             <tr>

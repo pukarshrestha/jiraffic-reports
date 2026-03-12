@@ -14,6 +14,7 @@ import { renderLogin } from './views/login.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderReport } from './views/report.js';
 import { renderWorkLog } from './views/worklog.js';
+import { renderSettings } from './views/settings.js';
 
 // Initialize theme
 initTheme();
@@ -30,6 +31,10 @@ registerRoute('/report/jql', () => renderReport('jql'));
 registerRoute('/report/worklog', () => {
   if (!isLoggedIn()) return navigate('/login');
   renderWorkLog();
+});
+registerRoute('/settings', () => {
+  if (!isLoggedIn()) return navigate('/login');
+  renderSettings();
 });
 
 // Override the router to handle dynamic report routes

@@ -25,19 +25,19 @@ export async function renderDashboard() {
 
   const content = document.getElementById('page-content');
   content.innerHTML = `
-    <div class="page-header">
+    <div class="page-header" id="dashboard-header">
       <h1 class="page-title">Dashboard</h1>
       <p class="page-subtitle">Overview of your Jira projects and reports</p>
     </div>
 
-    <div id="stats-grid" class="stat-grid" style="margin-bottom: var(--ds-space-400);">
+    <div id="dashboard-stats" class="stat-grid" style="margin-bottom: var(--ds-space-400);">
       <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
       <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
       <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
       <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
     </div>
 
-    <div style="margin-bottom: var(--ds-space-300);">
+    <div id="dashboard-projects" style="margin-bottom: var(--ds-space-300);">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-200);">
         <h2 style="font: var(--ds-font-heading-medium);">Projects</h2>
         <div style="position: relative;">
@@ -89,7 +89,7 @@ async function loadStats() {
 
     const summary = statusSummary(myIssues.issues || []);
 
-    document.getElementById('stats-grid').innerHTML = `
+    document.getElementById('dashboard-stats').innerHTML = `
       <div class="stat-card">
         <div class="stat-card-label">My Open Issues</div>
         <div class="stat-card-value">${summary.toDo + summary.inProgress}</div>
@@ -108,7 +108,7 @@ async function loadStats() {
       </div>
     `;
   } catch {
-    document.getElementById('stats-grid').innerHTML = `
+    document.getElementById('dashboard-stats').innerHTML = `
       <div class="stat-card">
         <div class="stat-card-label">Projects</div>
         <div class="stat-card-value">${projects.length}</div>
