@@ -297,6 +297,27 @@ async function generateWorklogReport() {
       });
     });
 
+    // Build user × day matrix for timesheet
+    const userDayMatrix = {};
+    issueWorklogs.forEach(iw => {
+      iw.worklogs.forEach(wl => {
+        const userId = wl.author?.accountId;
+        const userName = wl.author?.displayName || 'Unknown';
+        const day = wl.started?.substring(0, 10);
+        if (!userDayMatrix[userId]) userDayMatrix[userId] = { name: userName, days: {} };
+        if (!userDayMatrix[userId].days[day]) userDayMatrix[userId].days[day] = 0;
+        userDayMatrix[userId].days[day] += wl.timeSpentSeconds || 0;
+      });
+    });
+
+    // Generate all dates in selected range (so zero-log days show too)
+    const allDaysInRange = [];
+    const rangeStart = new Date(dateFrom + 'T00:00:00');
+    const rangeEnd = new Date(dateTo + 'T00:00:00');
+    for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
+      allDaysInRange.push(d.toISOString().split('T')[0]);
+    }
+
     const creds = getCredentials();
     const jiraUrl = creds?.jiraUrl || '';
 
@@ -325,44 +346,70 @@ async function generateWorklogReport() {
         </div>
       </div>
 
-      <!-- Per-User Breakdown -->
-      ${Object.keys(userTotals).length > 1 ? `
-        <div class="card" style="margin-bottom: var(--ds-space-300);">
-          <h3 style="font: var(--ds-font-heading-small); margin-bottom: var(--ds-space-200);">Per-User Breakdown</h3>
-          <div style="display: flex; flex-wrap: wrap; gap: var(--ds-space-200);">
-            ${Object.values(userTotals).map(ut => `
-              <div style="display: flex; align-items: center; gap: var(--ds-space-100); padding: var(--ds-space-100) var(--ds-space-200); background: var(--ds-background-neutral); border-radius: var(--ds-radius-200);">
-                <span class="avatar avatar-sm" style="width: 24px; height: 24px; font-size: 11px;">${ut.name.charAt(0).toUpperCase()}</span>
-                <div>
-                  <div style="font: var(--ds-font-body); font-weight: var(--ds-font-weight-medium);">${ut.name}</div>
-                  <div style="font: var(--ds-font-body-small); color: var(--ds-text-subtle);">${formatDuration(ut.seconds)} (${formatHoursDecimal(ut.seconds)})</div>
-                </div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      ` : ''}
-
-      <!-- Daily Breakdown -->
+      <!-- Timesheet Matrix: Users × Days -->
       <div class="card" style="margin-bottom: var(--ds-space-300);">
-        <h3 style="font: var(--ds-font-heading-small); margin-bottom: var(--ds-space-200);">Daily Breakdown</h3>
+        <h3 style="font: var(--ds-font-heading-small); margin-bottom: var(--ds-space-200);">Daily Timesheet</h3>
         <div class="table-container">
-          <table class="table">
-            <thead><tr><th>Date</th><th>Day</th><th>Time Logged</th><th>Hours</th></tr></thead>
+          <table class="table wl-matrix-table">
+            <thead>
+              <tr>
+                <th class="wl-matrix-user-col">Team Member</th>
+                ${allDaysInRange.map(day => {
+                  const d = new Date(day + 'T00:00:00');
+                  const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                  return `<th class="wl-matrix-day-col ${isWeekend ? 'wl-weekend' : ''}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}">
+                    <div class="wl-day-header">
+                      <span class="wl-day-name">${d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                      <span class="wl-day-date">${d.getDate()}</span>
+                    </div>
+                  </th>`;
+                }).join('')}
+                <th class="wl-matrix-total-col">Total</th>
+              </tr>
+            </thead>
             <tbody>
-              ${sortedDays.map(day => {
-                const d = new Date(day + 'T00:00:00');
-                const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+              ${Object.entries(userDayMatrix).map(([userId, userData]) => {
+                const rowTotal = Object.values(userData.days).reduce((s, v) => s + v, 0);
                 return `
                   <tr>
-                    <td style="font-weight: var(--ds-font-weight-medium);">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
-                    <td>${dayName}</td>
-                    <td>${formatDuration(dayTotals[day])}</td>
-                    <td style="color: var(--ds-text-subtle);">${formatHoursDecimal(dayTotals[day])}</td>
+                    <td class="wl-matrix-user-cell">
+                      <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
+                        <span class="avatar avatar-sm" style="width: 24px; height: 24px; font-size: 11px; flex-shrink: 0;">${userData.name.charAt(0).toUpperCase()}</span>
+                        <span style="font-weight: var(--ds-font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userData.name}</span>
+                      </div>
+                    </td>
+                    ${allDaysInRange.map(day => {
+                      const seconds = userData.days[day] || 0;
+                      const hours = seconds / 3600;
+                      const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
+                      let cellClass = isWeekend ? 'wl-weekend' : '';
+                      if (seconds > 0) {
+                        if (hours >= 8) cellClass += ' wl-cell-full';
+                        else if (hours >= 4) cellClass += ' wl-cell-half';
+                        else cellClass += ' wl-cell-light';
+                      }
+                      return `<td class="wl-matrix-cell ${cellClass}" title="${userData.name}: ${formatDuration(seconds)} on ${day}">
+                        ${seconds > 0 ? formatDurationCompact(seconds) : '<span class="wl-cell-empty">—</span>'}
+                      </td>`;
+                    }).join('')}
+                    <td class="wl-matrix-total-cell">${formatDuration(rowTotal)}<div class="wl-cell-hours">${formatHoursDecimal(rowTotal)}</div></td>
                   </tr>
                 `;
               }).join('')}
             </tbody>
+            <tfoot>
+              <tr class="wl-matrix-footer-row">
+                <td style="font-weight: var(--ds-font-weight-semibold);">Total</td>
+                ${allDaysInRange.map(day => {
+                  const colTotal = Object.values(userDayMatrix).reduce((s, u) => s + (u.days[day] || 0), 0);
+                  const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
+                  return `<td class="wl-matrix-cell ${isWeekend ? 'wl-weekend' : ''}" style="font-weight: var(--ds-font-weight-semibold);">
+                    ${colTotal > 0 ? formatDurationCompact(colTotal) : '—'}
+                  </td>`;
+                }).join('')}
+                <td class="wl-matrix-total-cell" style="font-weight: var(--ds-font-weight-bold);">${formatDuration(grandTotalSeconds)}<div class="wl-cell-hours">${formatHoursDecimal(grandTotalSeconds)}</div></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -452,6 +499,15 @@ function formatDuration(seconds) {
 
 function formatHoursDecimal(seconds) {
   return (seconds / 3600).toFixed(1) + 'h';
+}
+
+function formatDurationCompact(seconds) {
+  if (!seconds || seconds === 0) return '0m';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h${m}m`;
 }
 
 function getStatusLozengeClass(statusCategoryKey) {
@@ -633,6 +689,94 @@ function injectWorklogStyles() {
     }
     .wl-accordion-body .table th {
       background: var(--ds-surface-sunken);
+    }
+
+    /* Matrix table */
+    .wl-matrix-table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    .wl-matrix-user-col {
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: var(--ds-surface) !important;
+      min-width: 160px;
+      max-width: 200px;
+    }
+    .wl-matrix-user-cell {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--ds-surface) !important;
+    }
+    .wl-matrix-day-col {
+      text-align: center;
+      min-width: 64px;
+      padding: var(--ds-space-075) var(--ds-space-050) !important;
+    }
+    .wl-day-header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+    .wl-day-name {
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-medium);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 10px;
+      color: var(--ds-text-subtlest);
+    }
+    .wl-day-date {
+      font: var(--ds-font-body);
+      font-weight: var(--ds-font-weight-semibold);
+    }
+    .wl-matrix-cell {
+      text-align: center;
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-medium);
+      padding: var(--ds-space-100) var(--ds-space-050) !important;
+      white-space: nowrap;
+      transition: background-color var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-matrix-total-col,
+    .wl-matrix-total-cell {
+      text-align: center;
+      font-weight: var(--ds-font-weight-semibold);
+      background: var(--ds-background-neutral-subtle) !important;
+      min-width: 72px;
+    }
+    .wl-cell-hours {
+      font: var(--ds-font-body-small);
+      font-size: 10px;
+      color: var(--ds-text-subtlest);
+      font-weight: 400;
+    }
+    .wl-cell-empty {
+      color: var(--ds-text-disabled);
+    }
+    .wl-cell-full {
+      background: var(--ds-background-success) !important;
+      color: var(--ds-text-success);
+    }
+    .wl-cell-half {
+      background: var(--ds-background-warning) !important;
+      color: var(--ds-text-warning);
+    }
+    .wl-cell-light {
+      background: var(--ds-background-neutral-subtle) !important;
+    }
+    .wl-weekend {
+      background: var(--ds-background-neutral) !important;
+      opacity: 0.7;
+    }
+    .wl-matrix-footer-row td {
+      background: var(--ds-surface-sunken) !important;
+    }
+    .wl-matrix-footer-row .wl-matrix-cell {
+      font-weight: var(--ds-font-weight-semibold) !important;
     }
 
     @media (max-width: 768px) {
