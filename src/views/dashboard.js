@@ -54,13 +54,6 @@ export async function renderDashboard() {
         <p class="empty-state-description">No Jira projects match your search or your account doesn't have access to any projects.</p>
       </div>
     </div>
-
-    <div style="margin-bottom: var(--ds-space-300);">
-      <h2 style="font: var(--ds-font-heading-medium); margin-bottom: var(--ds-space-200);">Quick Reports</h2>
-      <div class="grid grid-3" id="report-tiles">
-        ${renderReportTiles()}
-      </div>
-    </div>
   `;
 
   // Search handler
@@ -178,45 +171,6 @@ function filterProjects(query) {
   renderProjectCards(filtered);
 }
 
-function renderReportTiles() {
-  const reports = [
-    {
-      id: 'velocity',
-      title: 'Sprint Velocity',
-      description: 'Track story points committed vs. completed across sprints',
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`,
-      color: 'var(--ds-icon-brand)',
-    },
-    {
-      id: 'distribution',
-      title: 'Issue Distribution',
-      description: 'Breakdown of issues by status, type, and priority',
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>`,
-      color: 'var(--ds-icon-success)',
-    },
-    {
-      id: 'workload',
-      title: 'Team Workload',
-      description: 'See how issues are distributed across team members',
-      icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
-      color: 'var(--ds-icon-discovery)',
-    },
-  ];
-
-  return reports.map(r => `
-    <div class="card card-interactive report-tile" data-report="${r.id}" tabindex="0">
-      <div style="display: flex; align-items: flex-start; gap: var(--ds-space-200);">
-        <div style="width: 40px; height: 40px; border-radius: var(--ds-radius-200); background-color: var(--ds-background-neutral); display: flex; align-items: center; justify-content: center; color: ${r.color}; flex-shrink: 0;">
-          <div style="width: 20px; height: 20px;">${r.icon}</div>
-        </div>
-        <div>
-          <div class="card-title" style="font: var(--ds-font-heading-xsmall); margin-bottom: var(--ds-space-050);">${r.title}</div>
-          <p style="font: var(--ds-font-body-small); color: var(--ds-text-subtle);">${r.description}</p>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
 
 function skeletonCards(count) {
   return Array(count).fill(`

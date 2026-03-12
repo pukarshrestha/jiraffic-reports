@@ -25,11 +25,7 @@ registerRoute('/dashboard', () => {
   renderDashboard();
 });
 
-// Report routes — support /report/:type and /report/:type/:projectKey
-registerRoute('/report/velocity', () => renderReport('velocity'));
-registerRoute('/report/distribution', () => renderReport('distribution'));
-registerRoute('/report/workload', () => renderReport('workload'));
-registerRoute('/report/trend', () => renderReport('trend'));
+// Report routes
 registerRoute('/report/jql', () => renderReport('jql'));
 registerRoute('/report/worklog', () => {
   if (!isLoggedIn()) return navigate('/login');
@@ -46,15 +42,6 @@ const originalHashHandler = () => {
     const [, type, projectKey] = reportMatch;
     if (!isLoggedIn()) return navigate('/login');
     renderReport(type, projectKey);
-    return;
-  }
-
-  // Check for /report/:projectKey pattern (from dashboard project click)
-  const projectMatch = hash.match(/^\/report\/([A-Z][A-Z0-9_-]+)$/);
-  if (projectMatch && !['velocity', 'distribution', 'workload', 'trend', 'jql', 'worklog'].includes(projectMatch[1])) {
-    // This is a project key, redirect to distribution by default
-    if (!isLoggedIn()) return navigate('/login');
-    renderReport('distribution', projectMatch[1]);
     return;
   }
 };
