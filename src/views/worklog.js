@@ -4,7 +4,7 @@
 
 import { getCredentials, getSavedUser } from '../services/auth.js';
 import { searchAllIssues, getIssueWorklogs, searchUsers, getMyself } from '../services/jira.js';
-import { getSettings, getGroups, getExpectedHours, isWorkday } from '../services/settings.js';
+import { getSettings, getGroups, getExpectedHours, isWorkday, getHolidayOnDate } from '../services/settings.js';
 import { showToast } from '../utils/toast.js';
 import { navigate } from '../utils/router.js';
 import { renderAppShell, updateBreadcrumbs } from '../components/shell.js';
@@ -778,8 +778,8 @@ function initCalendars(perUserData, issueWorklogs, jiraUrl) {
 
 function getWeekStart(date) {
   const d = new Date(date);
-  const day = d.getDay();
-  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  const day = d.getDay(); // Sun=0
+  d.setDate(d.getDate() - day);
   d.setHours(0, 0, 0, 0);
   return d;
 }
@@ -793,7 +793,7 @@ function renderCalendarGrid(tabId) {
   if (!gridEl || !labelEl) return;
 
   const { view, year, month, weekStart, days, expected } = state;
-  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   let cells = '';
   let datesToRender = [];
@@ -803,7 +803,7 @@ function renderCalendarGrid(tabId) {
     // Fill in leading empty cells for the first week
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startDow = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1; // Mon=0 based
+    const startDow = firstDay.getDay(); // Sun=0 based
 
     // Add header row
     cells += dayNames.map(d => `<div class="wl-cal-header-cell">${d}</div>`).join('');
@@ -832,11 +832,12 @@ function renderCalendarGrid(tabId) {
     const seconds = days[dateStr] || 0;
     const hours = seconds / 3600;
     const workday = isWorkday(dateStr);
+    const holiday = getHolidayOnDate(dateStr);
     const d = new Date(dateStr + 'T00:00:00');
     const isToday = formatDate(new Date()) === dateStr;
 
     let colorClass = '';
-    if (!workday) {
+    if (holiday || !workday) {
       colorClass = 'wl-cal-holiday';
     } else if (hours >= expected) {
       colorClass = 'wl-cal-over';
@@ -846,10 +847,15 @@ function renderCalendarGrid(tabId) {
       colorClass = 'wl-cal-zero';
     }
 
+    const tooltipParts = [d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })];
+    if (holiday) tooltipParts.push(`🎉 ${holiday.name}`);
+    if (hours > 0) tooltipParts.push(formatDuration(seconds));
+    else if (!holiday) tooltipParts.push('No log');
+
     cells += `
-      <div class="wl-cal-cell ${colorClass} ${isToday ? 'wl-cal-today' : ''}" data-date="${dateStr}" data-tab="${tabId}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}: ${hours > 0 ? formatDuration(seconds) : 'No log'}">
+      <div class="wl-cal-cell ${colorClass} ${isToday ? 'wl-cal-today' : ''}" data-date="${dateStr}" data-tab="${tabId}" title="${tooltipParts.join(' — ')}">
         <div class="wl-cal-date">${d.getDate()}</div>
-        <div class="wl-cal-hours">${hours > 0 ? formatHoursDecimal(seconds) : ''}</div>
+        ${holiday ? `<div class="wl-cal-holiday-name">${holiday.name}</div>` : `<div class="wl-cal-hours">${hours > 0 ? formatHoursDecimal(seconds) : ''}</div>`}
       </div>
     `;
   });
@@ -1440,7 +1446,16 @@ function injectWorklogStyles() {
       color: var(--ds-text-subtlest);
       opacity: 0.7;
     }
-
+    .wl-cal-holiday-name {
+      font-size: 9px;
+      line-height: 1.2;
+      text-align: center;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 100%;
+      margin-top: 2px;
+    }
     /* Calendar Nav */
     .wl-cal-nav {
       display: flex;

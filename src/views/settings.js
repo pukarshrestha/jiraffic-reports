@@ -1,13 +1,14 @@
 /**
- * Settings View — Work week, expected hours, and user groups
+ * Settings View — Work week, expected hours, holidays, and user groups
  */
 
 import { getCredentials } from '../services/auth.js';
-import { getSettings, saveSettings, getGroups, saveGroups } from '../services/settings.js';
+import { getSettings, saveSettings, getGroups, saveGroups, getHolidays, saveHolidays } from '../services/settings.js';
 import { searchUsers } from '../services/jira.js';
 import { showToast } from '../utils/toast.js';
 import { navigate } from '../utils/router.js';
 import { renderAppShell, updateBreadcrumbs } from '../components/shell.js';
+import * as XLSX from 'xlsx';
 
 let groupSearchTimeout = null;
 
@@ -24,6 +25,7 @@ export function renderSettings() {
 
   const settings = getSettings();
   const content = document.getElementById('page-content');
+  const holidays = settings.holidays || [];
 
   content.innerHTML = `
     <div class="page-header" id="settings-header">
@@ -50,6 +52,26 @@ export function renderSettings() {
       </div>
     </div>
 
+    <!-- Holidays -->
+    <div class="card" id="settings-holidays" style="margin-bottom: var(--ds-space-300);">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-050);">
+        <h3 style="font: var(--ds-font-heading-small);">Holidays</h3>
+        <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
+          <span id="holiday-count" style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest);">${holidays.length} holiday${holidays.length !== 1 ? 's' : ''}</span>
+          ${holidays.length > 0 ? `<button class="btn btn-subtle" id="clear-holidays-btn" style="height: 28px; font-size: 12px; color: var(--ds-text-danger);">Clear All</button>` : ''}
+          <label class="btn btn-primary" style="height: 32px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: var(--ds-space-075);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload Excel
+            <input type="file" id="holiday-upload" accept=".xlsx,.xls,.csv" style="display: none;" />
+          </label>
+        </div>
+      </div>
+      <p style="font: var(--ds-font-body-small); color: var(--ds-text-subtle); margin-bottom: var(--ds-space-200);">Upload an Excel file (.xlsx, .xls, .csv) with <strong>Date</strong> and <strong>Holiday Name</strong> columns. The dates will be marked as holidays across the application.</p>
+      <div id="holiday-list">
+        ${renderHolidayList(holidays)}
+      </div>
+    </div>
+
     <!-- User Groups -->
     <div class="card" id="settings-groups" style="margin-bottom: var(--ds-space-300);">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-050);">
@@ -71,19 +93,56 @@ export function renderSettings() {
 
 function renderWorkWeekToggles(workWeek) {
   const days = [
+    { key: 'sun', label: 'Sun' },
     { key: 'mon', label: 'Mon' },
     { key: 'tue', label: 'Tue' },
     { key: 'wed', label: 'Wed' },
     { key: 'thu', label: 'Thu' },
     { key: 'fri', label: 'Fri' },
     { key: 'sat', label: 'Sat' },
-    { key: 'sun', label: 'Sun' },
   ];
   return days.map(d => `
     <button class="settings-day-toggle ${workWeek[d.key] ? 'active' : ''}" data-day="${d.key}" title="${workWeek[d.key] ? 'Workday — click to mark as holiday' : 'Holiday — click to mark as workday'}">
       ${d.label}
     </button>
   `).join('');
+}
+
+function renderHolidayList(holidays) {
+  if (!holidays.length) {
+    return `<div style="text-align: center; padding: var(--ds-space-200); color: var(--ds-text-subtlest); font: var(--ds-font-body-small);">No holidays uploaded yet. Upload an Excel file to add holidays.</div>`;
+  }
+  // Sort by date
+  const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
+  return `
+    <div class="settings-holiday-table-wrap">
+      <table class="table" style="font-size: 13px;">
+        <thead>
+          <tr>
+            <th style="width: 140px;">Date</th>
+            <th>Holiday Name</th>
+            <th style="width: 40px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sorted.map((h, i) => {
+            const d = new Date(h.date + 'T00:00:00');
+            return `
+              <tr>
+                <td style="font-weight: var(--ds-font-weight-medium);">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                <td>${h.name || '—'}</td>
+                <td>
+                  <button class="btn btn-subtle btn-icon-only settings-remove-holiday" data-date="${h.date}" title="Remove" style="width: 24px; height: 24px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 
 function renderGroupsList(groups) {
@@ -104,7 +163,12 @@ function renderGroupsList(groups) {
           </button>
         </div>
       </div>
-      <div class="settings-group-members">
+      <div style="position: relative; margin-top: var(--ds-space-100);" id="settings-group-user-search-${i}">
+        <input class="input settings-group-user-search" data-group-idx="${i}" placeholder="Search and add users..." style="height: 28px; font-size: 12px; padding-left: var(--ds-space-300);" />
+        <svg style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--ds-icon-subtle);" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <div class="settings-group-dropdown" data-group-idx="${i}" style="display: none;"></div>
+      </div>
+      <div class="settings-group-members" id="settings-group-members-${i}">
         ${g.users.map((u, ui) => `
           <span class="settings-user-chip">
             <span class="avatar avatar-sm" style="width: 18px; height: 18px; font-size: 9px;">${(u.displayName || '?').charAt(0).toUpperCase()}</span>
@@ -112,11 +176,6 @@ function renderGroupsList(groups) {
             <button class="settings-chip-remove" data-group-idx="${i}" data-user-idx="${ui}" title="Remove">&times;</button>
           </span>
         `).join('')}
-      </div>
-      <div style="position: relative; margin-top: var(--ds-space-100);">
-        <input class="input settings-group-user-search" data-group-idx="${i}" placeholder="Search and add users..." style="height: 28px; font-size: 12px; padding-left: var(--ds-space-300);" />
-        <svg style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--ds-icon-subtle);" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <div class="settings-group-dropdown" data-group-idx="${i}" style="display: none;"></div>
       </div>
     </div>
   `).join('');
@@ -145,6 +204,34 @@ function attachSettingsListeners(settings) {
     }
   });
 
+  // Holiday upload
+  document.getElementById('holiday-upload').addEventListener('change', handleHolidayUpload);
+
+  // Clear holidays
+  document.getElementById('clear-holidays-btn')?.addEventListener('click', () => {
+    if (confirm('Remove all holidays?')) {
+      saveHolidays([]);
+      settings.holidays = [];
+      document.getElementById('holiday-list').innerHTML = renderHolidayList([]);
+      document.getElementById('holiday-count').textContent = '0 holidays';
+      const clearBtn = document.getElementById('clear-holidays-btn');
+      if (clearBtn) clearBtn.remove();
+      showToast('success', 'All holidays cleared');
+    }
+  });
+
+  // Remove individual holiday (delegation)
+  document.getElementById('holiday-list').addEventListener('click', (e) => {
+    const btn = e.target.closest('.settings-remove-holiday');
+    if (!btn) return;
+    const dateToRemove = btn.dataset.date;
+    settings.holidays = (settings.holidays || []).filter(h => h.date !== dateToRemove);
+    saveSettings(settings);
+    document.getElementById('holiday-list').innerHTML = renderHolidayList(settings.holidays);
+    document.getElementById('holiday-count').textContent = `${settings.holidays.length} holiday${settings.holidays.length !== 1 ? 's' : ''}`;
+    showToast('success', 'Holiday removed');
+  });
+
   // Add group
   document.getElementById('add-group-btn').addEventListener('click', () => {
     if (!settings.groups) settings.groups = [];
@@ -158,6 +245,89 @@ function attachSettingsListeners(settings) {
   });
 
   attachGroupListeners(settings);
+}
+
+function handleHolidayUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+
+      if (rows.length < 2) {
+        showToast('error', 'Empty file', 'The file needs at least a header row and one data row.');
+        return;
+      }
+
+      // Find column indices (case-insensitive)
+      const header = rows[0].map(h => (h || '').toString().toLowerCase().trim());
+      let dateCol = header.findIndex(h => h === 'date' || h === 'holiday date');
+      let nameCol = header.findIndex(h => h === 'name' || h === 'holiday name' || h === 'holiday' || h === 'description');
+
+      // Fallback: assume first two columns
+      if (dateCol === -1) dateCol = 0;
+      if (nameCol === -1) nameCol = dateCol === 0 ? 1 : 0;
+
+      const holidays = [];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || !row[dateCol]) continue;
+
+        let dateStr = '';
+        const rawDate = row[dateCol];
+
+        if (typeof rawDate === 'number') {
+          // Excel serial date number
+          const d = XLSX.SSF.parse_date_code(rawDate);
+          dateStr = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+        } else {
+          // Try parsing as string
+          const parsed = new Date(rawDate);
+          if (!isNaN(parsed.getTime())) {
+            dateStr = `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
+          }
+        }
+
+        if (dateStr) {
+          holidays.push({
+            date: dateStr,
+            name: (row[nameCol] || '').toString().trim() || 'Holiday',
+          });
+        }
+      }
+
+      if (holidays.length === 0) {
+        showToast('error', 'No valid dates found', 'Make sure the file has a Date column with valid dates.');
+        return;
+      }
+
+      // Merge with existing (replace duplicates)
+      const existing = getHolidays();
+      const merged = [...existing];
+      holidays.forEach(h => {
+        const idx = merged.findIndex(e => e.date === h.date);
+        if (idx >= 0) merged[idx] = h;
+        else merged.push(h);
+      });
+
+      saveHolidays(merged);
+      const settings = getSettings();
+
+      document.getElementById('holiday-list').innerHTML = renderHolidayList(merged);
+      document.getElementById('holiday-count').textContent = `${merged.length} holiday${merged.length !== 1 ? 's' : ''}`;
+      showToast('success', `${holidays.length} holidays imported`, `${holidays.length} dates loaded from ${file.name}`);
+    } catch (err) {
+      showToast('error', 'Failed to parse file', err.message);
+    }
+    // Reset the input so the same file can be re-uploaded
+    event.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 function attachGroupListeners(settings) {
@@ -303,6 +473,7 @@ function injectSettingsStyles() {
       flex-wrap: wrap;
       gap: var(--ds-space-075);
       min-height: 24px;
+      margin-top: var(--ds-space-100);
     }
     .settings-user-chip {
       display: inline-flex;
@@ -352,6 +523,22 @@ function injectSettingsStyles() {
     }
     .settings-dropdown-item:hover {
       background: var(--ds-background-neutral-hovered);
+    }
+
+    .settings-holiday-table-wrap {
+      max-height: 320px;
+      overflow-y: auto;
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-200);
+    }
+    .settings-holiday-table-wrap .table {
+      margin: 0;
+    }
+    .settings-holiday-table-wrap .table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: var(--ds-surface);
     }
   `;
   document.head.appendChild(style);
