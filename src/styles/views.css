@@ -606,6 +606,14 @@
   height: 28px;
 }
 
+.wl-cal-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  grid-column: 1 / -1;
+}
+
 /* ── Worklog Calendar Legend Dots ──────────────────── */
 .wl-legend-dot-success {
   background: var(--ds-background-success);
@@ -636,7 +644,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-100);
-  margin-bottom: var(--ds-space-075);
 }
 
 .wl-day-wl-entry {

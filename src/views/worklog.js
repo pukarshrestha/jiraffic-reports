@@ -122,11 +122,24 @@ export async function renderWorkLog() {
       customFrom.classList.add('d-none');
       customTo.classList.add('d-none');
       applyDatePreset(val);
+      // Update date inputs to reflect new dates
+      document.getElementById('date-from').value = dateFrom;
+      document.getElementById('date-to').value = dateTo;
+      // Auto-regenerate report
+      generateWorklogReport();
     }
   });
 
-  document.getElementById('date-from').addEventListener('change', (e) => { dateFrom = e.target.value; });
-  document.getElementById('date-to').addEventListener('change', (e) => { dateTo = e.target.value; });
+  // When custom date inputs change, auto-regenerate
+  document.getElementById('date-from').addEventListener('change', (e) => {
+    dateFrom = e.target.value;
+    generateWorklogReport();
+  });
+  document.getElementById('date-to').addEventListener('change', (e) => {
+    dateTo = e.target.value;
+    generateWorklogReport();
+  });
+
   document.getElementById('generate-btn').addEventListener('click', generateWorklogReport);
 
   // User search
@@ -226,9 +239,9 @@ async function searchAndShowUsers(query) {
       html += filtered.map(u => `
         <button class="user-dropdown-item" data-account-id="${u.accountId}" data-name="${u.displayName}" data-email="${u.emailAddress || ''}" data-avatar="${u.avatarUrls?.['24x24'] || ''}">
           ${u.avatarUrls?.['24x24']
-            ? `<img src="${u.avatarUrls['24x24']}" alt="" class="dropdown-avatar-img" />`
-            : `<span class="avatar avatar-sm dropdown-avatar-initial">${u.displayName.charAt(0).toUpperCase()}</span>`
-          }
+          ? `<img src="${u.avatarUrls['24x24']}" alt="" class="dropdown-avatar-img" />`
+          : `<span class="avatar avatar-sm dropdown-avatar-initial">${u.displayName.charAt(0).toUpperCase()}</span>`
+        }
           <div>
             <div class="dropdown-item-name">${u.displayName}</div>
             ${u.emailAddress ? `<div class="dropdown-item-sub">${u.emailAddress}</div>` : ''}
@@ -656,15 +669,15 @@ function renderTimesheetWeek() {
           <tr>
             <th class="wl-matrix-user-col">Team Member</th>
             ${weekDays.map(day => {
-              const d = new Date(day + 'T00:00:00');
-              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-              return `<th class="wl-matrix-day-col ${isWeekend ? 'wl-weekend' : ''}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}">
+    const d = new Date(day + 'T00:00:00');
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+    return `<th class="wl-matrix-day-col ${isWeekend ? 'wl-weekend' : ''}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}">
                 <div class="wl-day-header">
                   <span class="wl-day-name">${d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                   <span class="wl-day-date">${d.getDate()}</span>
                 </div>
               </th>`;
-            }).join('')}
+  }).join('')}
             <th class="wl-matrix-total-col">Total</th>
           </tr>
         </thead>
@@ -786,8 +799,8 @@ function renderTaskAccordionItems(issues, jiraUrl, tabId) {
             <span class="wl-issue-summary">${iw.issue.fields?.summary || ''}</span>
           </div>
           <div class="wl-accordion-right">
-            <span class="lozenge lozenge-default flex-shrink-0">${iw.issue.fields?.project?.name || iw.issue.fields?.project?.key || ''}</span>
             <span class="lozenge ${getStatusLozengeClass(iw.issue.fields?.status?.statusCategory?.key)} flex-shrink-0">${iw.issue.fields?.status?.name || ''}</span>
+            <span class="lozenge lozenge-default flex-shrink-0">${iw.issue.fields?.project?.name || iw.issue.fields?.project?.key || ''}</span>
             <span class="wl-time-badge">${formatDuration(iw.totalSeconds)}</span>
           </div>
         </button>
@@ -816,6 +829,9 @@ function renderTaskAccordionItems(issues, jiraUrl, tabId) {
 const calendarStates = {};
 
 function initCalendars(perUserData, issueWorklogs, jiraUrl) {
+  // Set initial calendar month/year from the selected dateFrom
+  const rangeStart = new Date(dateFrom + 'T00:00:00');
+
   Object.keys(perUserData).forEach(tabId => {
     const gridEl = document.getElementById(`cal-grid-${tabId}`);
     if (!gridEl) return;
@@ -823,13 +839,11 @@ function initCalendars(perUserData, issueWorklogs, jiraUrl) {
     const days = JSON.parse(gridEl.dataset.days || '{}');
     const expected = parseFloat(gridEl.dataset.expected || '7');
 
-    // Determine initial view range from the data
-    const now = new Date();
     calendarStates[tabId] = {
       view: 'month',
-      year: now.getFullYear(),
-      month: now.getMonth(),
-      weekStart: getWeekStart(now),
+      year: rangeStart.getFullYear(),
+      month: rangeStart.getMonth(),
+      weekStart: getWeekStart(rangeStart),
       days,
       expected,
       userData: perUserData[tabId],
@@ -939,11 +953,111 @@ function renderCalendarGrid(tabId) {
   });
 }
 
+/**
+ * Load worklog data for the current calendar view period and re-render.
+ * Shows a loading overlay while data is being fetched.
+ */
+async function loadCalendarData(tabId) {
+  const state = calendarStates[tabId];
+  if (!state) return;
+
+  // Compute the date range for the current view
+  let rangeFrom, rangeTo;
+  if (state.view === 'month') {
+    const firstDay = new Date(state.year, state.month, 1);
+    const lastDay = new Date(state.year, state.month + 1, 0);
+    rangeFrom = formatDate(firstDay);
+    rangeTo = formatDate(lastDay);
+  } else {
+    const ws = new Date(state.weekStart);
+    const we = new Date(ws);
+    we.setDate(ws.getDate() + 6);
+    rangeFrom = formatDate(ws);
+    rangeTo = formatDate(we);
+  }
+
+  // Check if we already have data covering this range
+  const hasExistingData = Object.keys(state.days).some(d => d >= rangeFrom && d <= rangeTo);
+  // If range is within the original dateFrom..dateTo, we already have complete data
+  const withinOriginalRange = rangeFrom >= dateFrom && rangeTo <= dateTo;
+
+  if (withinOriginalRange || hasExistingData) {
+    // Data already available from the initial load — just re-render
+    renderCalendarGrid(tabId);
+    return;
+  }
+
+  // Show loading state on the calendar grid
+  const gridEl = document.getElementById(`cal-grid-${tabId}`);
+  if (gridEl) {
+    gridEl.innerHTML = `<div class="wl-cal-loading"><div class="spinner"></div></div>`;
+  }
+
+  try {
+    // Fetch worklogs for this user in the new date range
+    const userId = tabId;
+    const user = selectedUsers.find(u => u.accountId === userId);
+    if (!user) { renderCalendarGrid(tabId); return; }
+
+    const jql = `worklogAuthor = "${userId}" AND worklogDate >= "${rangeFrom}" AND worklogDate <= "${rangeTo}" ORDER BY updated DESC`;
+    const issues = await searchAllIssues(jql, 'summary,project,status,issuetype,assignee');
+
+    // Fetch and filter worklogs
+    const newDays = {};
+    const newIssues = [];
+    for (const issue of issues) {
+      try {
+        const worklogs = await getIssueWorklogs(issue.key);
+        const filtered = worklogs.filter(wl => {
+          const wlDate = wl.started?.substring(0, 10);
+          return wlDate >= rangeFrom && wlDate <= rangeTo && wl.author?.accountId === userId;
+        });
+        if (filtered.length > 0) {
+          newIssues.push({ issue, worklogs: filtered, totalSeconds: filtered.reduce((s, wl) => s + (wl.timeSpentSeconds || 0), 0) });
+          filtered.forEach(wl => {
+            const day = wl.started?.substring(0, 10);
+            if (!newDays[day]) newDays[day] = 0;
+            newDays[day] += wl.timeSpentSeconds || 0;
+          });
+        }
+      } catch { /* skip */ }
+    }
+
+    // Merge new days into existing state
+    Object.assign(state.days, newDays);
+
+    // Also merge into userData.issues for the day modal
+    if (state.userData) {
+      newIssues.forEach(ni => {
+        const existing = state.userData.issues.find(iw => iw.issue.key === ni.issue.key);
+        if (existing) {
+          // Add new worklogs that aren't already present
+          ni.worklogs.forEach(wl => {
+            if (!existing.worklogs.some(ew => ew.id === wl.id)) {
+              existing.worklogs.push(wl);
+              existing.totalSeconds += wl.timeSpentSeconds || 0;
+            }
+          });
+        } else {
+          state.userData.issues.push(ni);
+        }
+      });
+      // Update days map
+      Object.assign(state.userData.days || {}, newDays);
+    }
+
+    renderCalendarGrid(tabId);
+  } catch (err) {
+    // On error, just render with what we have
+    renderCalendarGrid(tabId);
+  }
+}
+
 function attachCalendarNavHandlers(tabId) {
   const container = document.getElementById(`user-daily-${tabId}`);
   if (!container) return;
 
-  container.querySelector('.wl-cal-prev')?.addEventListener('click', () => {
+  container.querySelector('.wl-cal-prev')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
     if (state.view === 'month') {
       state.month--;
@@ -953,10 +1067,10 @@ function attachCalendarNavHandlers(tabId) {
       ws.setDate(ws.getDate() - 7);
       state.weekStart = ws;
     }
-    renderCalendarGrid(tabId);
+    await loadCalendarData(tabId);
   });
 
-  container.querySelector('.wl-cal-next')?.addEventListener('click', () => {
+  container.querySelector('.wl-cal-next')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
     if (state.view === 'month') {
       state.month++;
@@ -966,7 +1080,7 @@ function attachCalendarNavHandlers(tabId) {
       ws.setDate(ws.getDate() + 7);
       state.weekStart = ws;
     }
-    renderCalendarGrid(tabId);
+    await loadCalendarData(tabId);
   });
 
   container.querySelectorAll('.wl-cal-view-btn').forEach(btn => {
@@ -1024,12 +1138,6 @@ function showDayModal(tabId, dateStr) {
             </div>
             <span class="wl-time-badge">${formatDuration(t.totalSeconds)}</span>
           </div>
-          ${t.worklogs.map(wl => `
-            <div class="wl-day-wl-entry">
-              <span>${wl.timeSpent || formatDuration(wl.timeSpentSeconds || 0)}</span>
-              <span class="wl-day-wl-comment">${extractComment(wl.comment) || '—'}</span>
-            </div>
-          `).join('')}
         </div>
       `).join('')}
     `;

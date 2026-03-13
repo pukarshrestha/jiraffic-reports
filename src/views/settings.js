@@ -452,7 +452,7 @@ function injectSettingsStyles() {
     .settings-day-toggle.active {
       background: var(--ds-background-brand-bold);
       border-color: var(--ds-background-brand-bold);
-      color: white;
+      color: var(--ds-text-inverse);
     }
 
     .settings-group-card {
