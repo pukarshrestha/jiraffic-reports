@@ -1,34 +1,71 @@
 /**
  * Auth Service — Manage Jira credentials and sessions
  *
- * Stores base64-encoded credentials in localStorage.
- * Validates by testing /rest/api/3/myself endpoint.
+ * Supports multiple Jira Cloud sites.
+ * Stores credentials as an array in localStorage.
+ * Deduplication of users across sites is handled in jira.js.
  */
 
-const AUTH_KEY = 'jiraffic-auth';
+const SITES_KEY = 'jiraffic-sites';
 
-export function getCredentials() {
+/* ── Multi-Site Storage ──────────────────────────── */
+
+/**
+ * Get all saved Jira sites
+ * @returns {Array<{id: string, name: string, jiraUrl: string, email: string, apiToken: string}>}
+ */
+export function getSites() {
   try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    if (!raw) return null;
+    const raw = localStorage.getItem(SITES_KEY);
+    if (!raw) return [];
     return JSON.parse(atob(raw));
   } catch {
-    return null;
+    return [];
   }
 }
 
-export function saveCredentials(jiraUrl, email, apiToken) {
-  const creds = { jiraUrl: jiraUrl.replace(/\/+$/, ''), email, apiToken };
-  localStorage.setItem(AUTH_KEY, btoa(JSON.stringify(creds)));
-  return creds;
+function saveSites(sites) {
+  localStorage.setItem(SITES_KEY, btoa(JSON.stringify(sites)));
 }
 
-export function clearCredentials() {
-  localStorage.removeItem(AUTH_KEY);
+/**
+ * Add a new site. Returns the site object.
+ */
+export function addSite(name, jiraUrl, email, apiToken) {
+  const sites = getSites();
+  const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
+  const site = {
+    id,
+    name: name || new URL(jiraUrl).hostname.split('.')[0],
+    jiraUrl: jiraUrl.replace(/\/+$/, ''),
+    email,
+    apiToken,
+  };
+  sites.push(site);
+  saveSites(sites);
+  return site;
+}
+
+/**
+ * Remove a site by ID
+ */
+export function removeSite(id) {
+  const sites = getSites().filter(s => s.id !== id);
+  saveSites(sites);
+  return sites;
+}
+
+/**
+ * Backward compat — get first site's credentials
+ */
+export function getCredentials() {
+  const sites = getSites();
+  if (sites.length === 0) return null;
+  return sites[0];
 }
 
 export function isLoggedIn() {
-  return !!getCredentials();
+  return getSites().length > 0;
 }
 
 /**
@@ -59,9 +96,8 @@ export async function validateCredentials(jiraUrl, email, apiToken) {
   }
 }
 
-/**
- * Get the saved user info (fetched after login)
- */
+/* ── User Info ───────────────────────────────────── */
+
 export function getSavedUser() {
   try {
     const raw = localStorage.getItem('jiraffic-user');
@@ -78,6 +114,12 @@ export function saveUser(user) {
 
 export function clearUser() {
   localStorage.removeItem('jiraffic-user');
+}
+
+/* ── Login State ─────────────────────────────────── */
+
+export function clearCredentials() {
+  localStorage.removeItem(SITES_KEY);
 }
 
 export function logout() {

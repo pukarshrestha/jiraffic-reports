@@ -3,7 +3,7 @@
  */
 
 import { getCredentials, getSavedUser } from '../services/auth.js';
-import { searchAllIssues, getIssueWorklogs, searchUsers, getMyself } from '../services/jira.js';
+import { searchAllIssues, getIssueWorklogs, searchUsers, getMyself, buildUserWorklogJqlPerSite, searchAllIssuesMultiSite } from '../services/jira.js';
 import { getSettings, getGroups, getExpectedHours, isWorkday, getHolidayOnDate } from '../services/settings.js';
 import { showToast } from '../utils/toast.js';
 import { navigate } from '../utils/router.js';
@@ -319,11 +319,21 @@ async function generateWorklogReport() {
   `;
 
   try {
-    // Build JQL to find issues with worklogs by selected users in date range
-    const userAccountIds = selectedUsers.map(u => `"${u.accountId}"`).join(', ');
-    const jql = `worklogAuthor in (${userAccountIds}) AND worklogDate >= "${dateFrom}" AND worklogDate <= "${dateTo}" ORDER BY updated DESC`;
+    // Build per-site JQL queries using the correct accountId per site
+    const siteJqls = buildUserWorklogJqlPerSite(selectedUsers, dateFrom, dateTo);
 
-    const issues = await searchAllIssues(jql, 'summary,project,status,issuetype,assignee');
+    if (siteJqls.length === 0) {
+      resultsDiv.innerHTML = `
+        <div class="empty-state">
+          <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <p class="empty-state-title">No matching sites</p>
+          <p class="empty-state-description">The selected users don't have accounts on any connected Jira sites.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const issues = await searchAllIssuesMultiSite(siteJqls, 'summary,project,status,issuetype,assignee');
 
     if (!issues.length) {
       resultsDiv.innerHTML = `
@@ -340,12 +350,18 @@ async function generateWorklogReport() {
     const issueWorklogs = [];
     for (const issue of issues) {
       try {
-        const worklogs = await getIssueWorklogs(issue.key);
+        const worklogs = await getIssueWorklogs(issue.key, issue._site);
         // Filter worklogs to selected users and date range
         const filtered = worklogs.filter(wl => {
           const wlDate = wl.started?.substring(0, 10);
           const isInDateRange = wlDate >= dateFrom && wlDate <= dateTo;
-          const isSelectedUser = selectedUsers.some(u => u.accountId === wl.author?.accountId);
+          // Check if the author matches any selected user (by accountId or via siteAccounts)
+          const authorId = wl.author?.accountId;
+          const isSelectedUser = selectedUsers.some(u => {
+            if (u.accountId === authorId) return true;
+            if (u.siteAccounts) return u.siteAccounts.some(sa => sa.accountId === authorId);
+            return false;
+          });
           return isInDateRange && isSelectedUser;
         });
 
@@ -999,18 +1015,23 @@ async function loadCalendarData(tabId) {
     const user = selectedUsers.find(u => u.accountId === userId);
     if (!user) { renderCalendarGrid(tabId); return; }
 
-    const jql = `worklogAuthor = "${userId}" AND worklogDate >= "${rangeFrom}" AND worklogDate <= "${rangeTo}" ORDER BY updated DESC`;
-    const issues = await searchAllIssues(jql, 'summary,project,status,issuetype,assignee');
+    // Build per-site JQL for this user
+    const siteJqls = buildUserWorklogJqlPerSite([user], rangeFrom, rangeTo);
+    const issues = siteJqls.length > 0
+      ? await searchAllIssuesMultiSite(siteJqls, 'summary,project,status,issuetype,assignee')
+      : [];
 
     // Fetch and filter worklogs
     const newDays = {};
     const newIssues = [];
     for (const issue of issues) {
       try {
-        const worklogs = await getIssueWorklogs(issue.key);
+        const worklogs = await getIssueWorklogs(issue.key, issue._site);
         const filtered = worklogs.filter(wl => {
           const wlDate = wl.started?.substring(0, 10);
-          return wlDate >= rangeFrom && wlDate <= rangeTo && wl.author?.accountId === userId;
+          const authorId = wl.author?.accountId;
+          const isUserMatch = authorId === userId || (user.siteAccounts && user.siteAccounts.some(sa => sa.accountId === authorId));
+          return wlDate >= rangeFrom && wlDate <= rangeTo && isUserMatch;
         });
         if (filtered.length > 0) {
           newIssues.push({ issue, worklogs: filtered, totalSeconds: filtered.reduce((s, wl) => s + (wl.timeSpentSeconds || 0), 0) });

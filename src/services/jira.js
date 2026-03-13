@@ -1,23 +1,30 @@
 /**
  * Jira API Client — Wraps common Jira REST API v3 calls
  * All requests go through the Express proxy server.
+ *
+ * Multi-site support: most functions query ALL saved sites in parallel
+ * and merge results. Users are deduplicated by email address.
  */
 
-import { getCredentials } from './auth.js';
+import { getCredentials, getSites } from './auth.js';
 
-function getHeaders() {
-  const creds = getCredentials();
-  if (!creds) throw new Error('Not authenticated');
+/* ── Core Fetch Helpers ──────────────────────────── */
+
+function getHeaders(site) {
+  if (!site) throw new Error('Not authenticated');
   return {
     'Content-Type': 'application/json',
-    'X-Jira-Url': creds.jiraUrl,
-    'X-Jira-Email': creds.email,
-    'X-Jira-Token': creds.apiToken,
+    'X-Jira-Url': site.jiraUrl,
+    'X-Jira-Email': site.email,
+    'X-Jira-Token': site.apiToken,
   };
 }
 
-async function jiraFetch(endpoint, options = {}) {
-  const headers = getHeaders();
+/**
+ * Fetch from a specific site
+ */
+async function jiraFetchForSite(site, endpoint, options = {}) {
+  const headers = getHeaders(site);
   const resp = await fetch(`/api/jira${endpoint}`, {
     ...options,
     headers: { ...headers, ...options.headers },
@@ -31,55 +38,125 @@ async function jiraFetch(endpoint, options = {}) {
   return resp.json();
 }
 
-/** Get current user info */
+/**
+ * Backward compat — fetch from first site
+ */
+async function jiraFetch(endpoint, options = {}) {
+  const site = getCredentials();
+  return jiraFetchForSite(site, endpoint, options);
+}
+
+/**
+ * Fetch from ALL sites in parallel, merge results via merger callback.
+ * Returns merged array. Errors on individual sites are silently skipped.
+ */
+async function jiraFetchAll(endpoint, extractor, options = {}) {
+  const sites = getSites();
+  if (sites.length === 0) throw new Error('Not authenticated');
+
+  // If only 1 site, skip the overhead
+  if (sites.length === 1) {
+    const data = await jiraFetchForSite(sites[0], endpoint, options);
+    const items = extractor(data);
+    return items.map(item => ({ ...item, _site: sites[0] }));
+  }
+
+  const results = await Promise.allSettled(
+    sites.map(async site => {
+      const data = await jiraFetchForSite(site, endpoint, options);
+      const items = extractor(data);
+      return items.map(item => ({ ...item, _site: site }));
+    })
+  );
+
+  const merged = [];
+  results.forEach(r => {
+    if (r.status === 'fulfilled') merged.push(...r.value);
+  });
+  return merged;
+}
+
+/* ── Public API ──────────────────────────────────── */
+
+/** Get current user info (from first site) */
 export function getMyself() {
   return jiraFetch('/myself');
 }
 
-/** Get all accessible projects */
+/** Get all accessible projects from ALL sites */
 export async function getProjects() {
-  const data = await jiraFetch('/project/search?maxResults=50&orderBy=name');
-  return data.values || data;
+  const projects = await jiraFetchAll(
+    '/project/search?maxResults=50&orderBy=name',
+    data => data.values || data
+  );
+  return projects;
 }
 
-/** Get a specific project */
+/** Get a specific project (from the site it belongs to, or first site) */
 export function getProject(projectKey) {
   return jiraFetch(`/project/${projectKey}`);
 }
 
-/** Search issues with JQL (uses new /search/jql endpoint) */
-export async function searchIssues(jql, options = {}) {
+/** Search issues with JQL on a specific site */
+export async function searchIssuesOnSite(site, jql, options = {}) {
   const { maxResults = 50, fields = '', nextPageToken = '' } = options;
-  const params = new URLSearchParams({
-    jql,
-    maxResults: maxResults.toString(),
-  });
+  const params = new URLSearchParams({ jql, maxResults: maxResults.toString() });
   if (fields) params.set('fields', fields);
   if (nextPageToken) params.set('nextPageToken', nextPageToken);
-  return jiraFetch(`/search/jql?${params}`);
+  return jiraFetchForSite(site, `/search/jql?${params}`);
 }
 
-/** Get all issues matching JQL (handles nextPageToken pagination) */
+/** Search issues with JQL (first site — backward compat) */
+export async function searchIssues(jql, options = {}) {
+  const site = getCredentials();
+  return searchIssuesOnSite(site, jql, options);
+}
+
+/**
+ * Search ALL issues across ALL sites matching JQL.
+ * Each issue is tagged with `_site` (the site it came from).
+ */
 export async function searchAllIssues(jql, fields) {
-  const allIssues = [];
-  let nextPageToken = '';
-  let hasMore = true;
+  const sites = getSites();
+  if (sites.length === 0) throw new Error('Not authenticated');
 
-  while (hasMore) {
-    const data = await searchIssues(jql, { maxResults: 100, fields, nextPageToken });
-    allIssues.push(...(data.issues || []));
+  const results = await Promise.allSettled(
+    sites.map(async site => {
+      const allIssues = [];
+      let nextPageToken = '';
+      let hasMore = true;
 
-    if (data.nextPageToken) {
-      nextPageToken = data.nextPageToken;
-    } else {
-      hasMore = false;
+      while (hasMore) {
+        const data = await searchIssuesOnSite(site, jql, { maxResults: 100, fields, nextPageToken });
+        allIssues.push(...(data.issues || []).map(iss => ({ ...iss, _site: site })));
+
+        if (data.nextPageToken) {
+          nextPageToken = data.nextPageToken;
+        } else {
+          hasMore = false;
+        }
+
+        if (allIssues.length > 2000) break;
+      }
+      return allIssues;
+    })
+  );
+
+  const merged = [];
+  const seenKeys = new Set();
+  results.forEach(r => {
+    if (r.status === 'fulfilled') {
+      r.value.forEach(issue => {
+        // Deduplicate issues by key + site URL
+        const key = `${issue._site.jiraUrl}::${issue.key}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          merged.push(issue);
+        }
+      });
     }
-
-    // Safety limit
-    if (allIssues.length > 2000) break;
-  }
-
-  return allIssues;
+  });
+  return merged;
 }
 
 /** Get agile boards */
@@ -116,20 +193,135 @@ export function getPriorities() {
   return jiraFetch('/priority');
 }
 
-/** Get worklogs for a specific issue */
-export async function getIssueWorklogs(issueKey) {
+/**
+ * Get worklogs for a specific issue.
+ * If the issue has a _site tag, use that site; otherwise try all sites.
+ */
+export async function getIssueWorklogs(issueKey, issueSite) {
+  if (issueSite) {
+    const data = await jiraFetchForSite(issueSite, `/issue/${issueKey}/worklog?maxResults=1000`);
+    return data.worklogs || [];
+  }
+  // Fallback: try first site
   const data = await jiraFetch(`/issue/${issueKey}/worklog?maxResults=1000`);
   return data.worklogs || [];
 }
 
-/** Search for users (for the multi-user picker) */
+/**
+ * Search for users across ALL sites.
+ * Deduplicates by email address.
+ * Each returned user has a `siteAccounts` array: [{accountId, siteUrl, siteName}]
+ */
 export async function searchUsers(query) {
+  const sites = getSites();
+  if (sites.length === 0) throw new Error('Not authenticated');
+
   const params = new URLSearchParams({ query, maxResults: '20' });
-  return jiraFetch(`/user/search?${params}`);
+  const results = await Promise.allSettled(
+    sites.map(async site => {
+      const users = await jiraFetchForSite(site, `/user/search?${params}`);
+      return users.map(u => ({ ...u, _site: site }));
+    })
+  );
+
+  // Merge and deduplicate by email
+  const byEmail = new Map();
+  results.forEach(r => {
+    if (r.status !== 'fulfilled') return;
+    r.value.forEach(user => {
+      const email = (user.emailAddress || '').toLowerCase();
+      const key = email || user.accountId; // fallback to accountId if no email
+
+      if (byEmail.has(key)) {
+        const existing = byEmail.get(key);
+        // Add this site's accountId to the siteAccounts list
+        const alreadyHasSite = existing.siteAccounts.some(sa => sa.siteUrl === user._site.jiraUrl);
+        if (!alreadyHasSite) {
+          existing.siteAccounts.push({
+            accountId: user.accountId,
+            siteUrl: user._site.jiraUrl,
+            siteName: user._site.name,
+          });
+        }
+      } else {
+        byEmail.set(key, {
+          ...user,
+          siteAccounts: [{
+            accountId: user.accountId,
+            siteUrl: user._site.jiraUrl,
+            siteName: user._site.name,
+          }],
+        });
+      }
+    });
+  });
+
+  return Array.from(byEmail.values());
 }
 
 /** Get all accessible users (for assignable user search) */
 export async function findAssignableUsers(query = '') {
-  const params = new URLSearchParams({ query, maxResults: '20' });
-  return jiraFetch(`/user/search?${params}`);
+  return searchUsers(query);
+}
+
+/* ── Utilities for multi-site worklog queries ────── */
+
+/**
+ * Build a JQL clause for a user across sites.
+ * Returns an array of { site, jql } objects — one per site the user is on.
+ */
+export function buildUserWorklogJqlPerSite(selectedUsers, dateFrom, dateTo) {
+  const sites = getSites();
+  const siteJqls = [];
+
+  sites.forEach(site => {
+    // Find accountIds for this site from the selected users' siteAccounts
+    const accountIds = [];
+    selectedUsers.forEach(u => {
+      if (u.siteAccounts) {
+        const siteAcct = u.siteAccounts.find(sa => sa.siteUrl === site.jiraUrl);
+        if (siteAcct) accountIds.push(siteAcct.accountId);
+      } else if (u.accountId) {
+        // Legacy single-site user
+        accountIds.push(u.accountId);
+      }
+    });
+
+    if (accountIds.length > 0) {
+      const idList = accountIds.map(id => `"${id}"`).join(', ');
+      const jql = `worklogAuthor in (${idList}) AND worklogDate >= "${dateFrom}" AND worklogDate <= "${dateTo}" ORDER BY updated DESC`;
+      siteJqls.push({ site, jql });
+    }
+  });
+
+  return siteJqls;
+}
+
+/**
+ * Search all issues across sites using per-site JQL (for worklog queries).
+ * Returns merged issues, each tagged with _site.
+ */
+export async function searchAllIssuesMultiSite(siteJqls, fields) {
+  const results = await Promise.allSettled(
+    siteJqls.map(async ({ site, jql }) => {
+      const allIssues = [];
+      let nextPageToken = '';
+      let hasMore = true;
+
+      while (hasMore) {
+        const data = await searchIssuesOnSite(site, jql, { maxResults: 100, fields, nextPageToken });
+        allIssues.push(...(data.issues || []).map(iss => ({ ...iss, _site: site })));
+        nextPageToken = data.nextPageToken || '';
+        hasMore = !!nextPageToken;
+        if (allIssues.length > 2000) break;
+      }
+      return allIssues;
+    })
+  );
+
+  const merged = [];
+  results.forEach(r => {
+    if (r.status === 'fulfilled') merged.push(...r.value);
+  });
+  return merged;
 }

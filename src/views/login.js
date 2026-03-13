@@ -1,8 +1,8 @@
 /**
- * Login View — Jira credentials form
+ * Login View — Jira credentials form with multi-site support
  */
 
-import { validateCredentials, saveCredentials, saveUser, isLoggedIn } from '../services/auth.js';
+import { validateCredentials, addSite, getSites, removeSite, saveUser, isLoggedIn } from '../services/auth.js';
 import { showToast } from '../utils/toast.js';
 import { navigate } from '../utils/router.js';
 
@@ -14,7 +14,14 @@ export function renderLogin() {
   }
 
   const app = document.getElementById('app');
-  app.innerHTML = `
+  renderLoginForm(app);
+}
+
+function renderLoginForm(container) {
+  const sites = getSites();
+  const hasSites = sites.length > 0;
+
+  container.innerHTML = `
     <div class="login-page">
       <div class="login-card">
         <div class="login-brand">
@@ -24,10 +31,14 @@ export function renderLogin() {
             <path d="M8 23H24V25H8V23Z" fill="white" opacity="0.7"/>
           </svg>
           <h1 class="login-brand-title">Jira-ffic Reports</h1>
-          <p class="login-brand-subtitle">Connect your Jira account to generate custom reports and analytics</p>
+          <p class="login-brand-subtitle">${hasSites ? 'Add another Jira site or continue to dashboard' : 'Connect your Jira account to generate custom reports and analytics'}</p>
         </div>
 
+        ${hasSites ? renderConnectedSites(sites) : ''}
+
         <form id="login-form" class="login-form" autocomplete="off">
+          ${hasSites ? '<h3 class="text-heading-xsmall mb-200">Add Another Site</h3>' : ''}
+
           <div class="form-group">
             <label class="form-label" for="jira-url">Jira Cloud URL</label>
             <input
@@ -36,7 +47,7 @@ export function renderLogin() {
               id="jira-url"
               placeholder="https://yourcompany.atlassian.net"
               required
-              autofocus
+              ${!hasSites ? 'autofocus' : ''}
             />
             <span class="form-label-subtle">Your Atlassian Cloud instance URL</span>
           </div>
@@ -74,13 +85,8 @@ export function renderLogin() {
             </span>
           </div>
 
-          <div class="checkbox-group">
-            <input type="checkbox" id="remember-me" checked />
-            <label for="remember-me">Remember me</label>
-          </div>
-
           <button type="submit" class="btn btn-primary login-submit-btn" id="login-btn">
-            <span id="login-btn-text">Connect to Jira</span>
+            <span id="login-btn-text">${hasSites ? 'Add Site' : 'Connect to Jira'}</span>
             <div id="login-spinner" class="spinner spinner-sm login-spinner-inline d-none"></div>
           </button>
 
@@ -88,6 +94,12 @@ export function renderLogin() {
             <p class="login-error-text" id="login-error-text"></p>
           </div>
         </form>
+
+        ${hasSites ? `
+          <button class="btn btn-primary login-submit-btn mt-200" id="continue-btn">
+            Continue to Dashboard →
+          </button>
+        ` : ''}
 
         <div class="login-footer">
           <p>Your credentials are stored locally and never sent to third parties.</p>
@@ -106,11 +118,46 @@ export function renderLogin() {
   // Handle form submission
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await handleLogin();
+    await handleLogin(container);
+  });
+
+  // Continue button
+  document.getElementById('continue-btn')?.addEventListener('click', () => {
+    navigate('/dashboard');
+  });
+
+  // Remove site buttons
+  container.querySelectorAll('.login-site-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const siteId = btn.dataset.siteId;
+      removeSite(siteId);
+      showToast('info', 'Site removed');
+      renderLoginForm(container); // Re-render
+    });
   });
 }
 
-async function handleLogin() {
+function renderConnectedSites(sites) {
+  return `
+    <div class="login-connected-sites mb-200">
+      <h3 class="text-heading-xsmall mb-100">Connected Sites</h3>
+      ${sites.map(s => `
+        <div class="login-site-card">
+          <div class="login-site-info">
+            <div class="login-site-name">${s.name}</div>
+            <div class="login-site-url">${s.jiraUrl}</div>
+          </div>
+          <button class="btn-subtle btn-icon-only login-site-remove" data-site-id="${s.id}" title="Remove site">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function handleLogin(container) {
   const jiraUrl = document.getElementById('jira-url').value.trim();
   const email = document.getElementById('jira-email').value.trim();
   const apiToken = document.getElementById('jira-token').value.trim();
@@ -131,6 +178,13 @@ async function handleLogin() {
     return;
   }
 
+  // Check if site already added
+  const existingSites = getSites();
+  if (existingSites.some(s => s.jiraUrl.replace(/\/+$/, '') === jiraUrl.replace(/\/+$/, ''))) {
+    showError(errorDiv, errorText, 'This Jira site is already connected.');
+    return;
+  }
+
   // Show loading state
   loginBtn.disabled = true;
   loginBtnText.textContent = 'Connecting...';
@@ -141,10 +195,16 @@ async function handleLogin() {
     const result = await validateCredentials(jiraUrl, email, apiToken);
 
     if (result.success) {
-      saveCredentials(jiraUrl, email, apiToken);
+      // Extract site name from URL
+      const siteName = new URL(jiraUrl).hostname.split('.')[0];
+      addSite(siteName, jiraUrl, email, apiToken);
       saveUser(result.user);
-      showToast('success', 'Connected!', `Welcome, ${result.user.displayName}`);
-      navigate('/dashboard');
+
+      const siteCount = getSites().length;
+      showToast('success', 'Site Connected!', `${siteName} added (${siteCount} site${siteCount > 1 ? 's' : ''} total)`);
+
+      // Re-render login to show the connected sites list
+      renderLoginForm(container);
     } else {
       showError(errorDiv, errorText, result.error || 'Authentication failed. Please check your credentials.');
     }
@@ -152,7 +212,7 @@ async function handleLogin() {
     showError(errorDiv, errorText, err.message || 'Connection failed. Make sure the proxy server is running.');
   } finally {
     loginBtn.disabled = false;
-    loginBtnText.textContent = 'Connect to Jira';
+    loginBtnText.textContent = getSites().length > 0 ? 'Add Site' : 'Connect to Jira';
     loginSpinner.classList.add('d-none');
   }
 }

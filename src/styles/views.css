@@ -206,6 +206,69 @@
   color: var(--ds-text-danger);
 }
 
+/* ── Multi-Site Login ────────────────────────────── */
+.login-connected-sites {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  padding: var(--ds-space-200);
+  background: var(--ds-background-neutral-subtle);
+}
+
+.login-site-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--ds-space-100) 0;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.login-site-card:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.login-site-card:first-child {
+  padding-top: 0;
+}
+
+.login-site-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.login-site-name {
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-text);
+}
+
+.login-site-url {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.login-site-remove {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--ds-text-subtlest);
+}
+
+.login-site-remove:hover {
+  color: var(--ds-text-danger);
+}
+
+/* ── Sidebar Site Count ──────────────────────────── */
+.sidebar-site-count {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+  padding: 0 var(--ds-space-200);
+  margin-bottom: var(--ds-space-050);
+}
+
 /* ── Dashboard ────────────────────────────────────── */
 .skeleton-height-60 {
   height: 60px;
