@@ -35,11 +35,11 @@ function renderJQLView(content) {
       <p class="page-subtitle">Run custom JQL queries and view results</p>
     </div>
 
-    <div class="card" id="jql-query-input" style="margin-bottom: var(--ds-space-300);">
+    <div class="card mb-300" id="jql-query-input">
       <div class="form-group">
         <label class="form-label" for="jql-input">JQL Query</label>
-        <div style="display: flex; gap: var(--ds-space-100);">
-          <input class="input" type="text" id="jql-input" placeholder='project = "PROJ" AND status = "In Progress" ORDER BY created DESC' style="flex: 1;" />
+        <div class="jql-input-row">
+          <input class="input flex-1" type="text" id="jql-input" placeholder='project = "PROJ" AND status = "In Progress" ORDER BY created DESC' />
           <button class="btn btn-primary" id="jql-run-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             Run
@@ -84,7 +84,7 @@ async function executeJQL(jql) {
     }
 
     resultsDiv.innerHTML = `
-      <div id="jql-results-summary" style="margin-bottom: var(--ds-space-150); font: var(--ds-font-body-small); color: var(--ds-text-subtle);">
+      <div class="jql-results-summary" id="jql-results-summary">
         Showing ${issues.length} of ${result.total || issues.length} results
       </div>
       <div class="table-container" id="jql-results-table">
@@ -106,18 +106,18 @@ async function executeJQL(jql) {
               const lozengeClass = statusCat === 'done' ? 'lozenge-success' : statusCat === 'indeterminate' ? 'lozenge-info' : 'lozenge-default';
               return `
                 <tr>
-                  <td><a href="${getCredentials()?.jiraUrl}/browse/${issue.key}" target="_blank" rel="noopener" style="font-weight: var(--ds-font-weight-medium);">${issue.key}</a></td>
-                  <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${issue.fields?.summary || ''}</td>
+                  <td><a href="${getCredentials()?.jiraUrl}/browse/${issue.key}" target="_blank" rel="noopener" class="issue-key-link">${issue.key}</a></td>
+                  <td class="issue-summary-cell">${issue.fields?.summary || ''}</td>
                   <td><span class="lozenge ${lozengeClass}">${issue.fields?.status?.name || ''}</span></td>
                   <td>${issue.fields?.issuetype?.name || ''}</td>
                   <td>${issue.fields?.priority?.name || ''}</td>
                   <td>
                     ${issue.fields?.assignee
-                      ? `<div style="display: flex; align-items: center; gap: var(--ds-space-075);"><div class="avatar avatar-sm">${issue.fields.assignee.displayName?.charAt(0) || '?'}</div><span style="font: var(--ds-font-body-small);">${issue.fields.assignee.displayName}</span></div>`
-                      : '<span style="color: var(--ds-text-subtlest);">Unassigned</span>'
+                      ? `<div class="assignee-cell"><div class="avatar avatar-sm">${issue.fields.assignee.displayName?.charAt(0) || '?'}</div><span class="text-body-small">${issue.fields.assignee.displayName}</span></div>`
+                      : '<span class="unassigned-text">Unassigned</span>'
                     }
                   </td>
-                  <td style="font: var(--ds-font-body-small); color: var(--ds-text-subtle); white-space: nowrap;">${issue.fields?.created ? new Date(issue.fields.created).toLocaleDateString() : ''}</td>
+                  <td class="date-cell">${issue.fields?.created ? new Date(issue.fields.created).toLocaleDateString() : ''}</td>
                 </tr>
               `;
             }).join('')}
@@ -127,9 +127,9 @@ async function executeJQL(jql) {
     `;
   } catch (err) {
     resultsDiv.innerHTML = `
-      <div style="padding: var(--ds-space-200); background-color: var(--ds-background-danger); border-radius: var(--ds-radius-200);">
-        <p style="font: var(--ds-font-body); font-weight: var(--ds-font-weight-medium); color: var(--ds-text-danger); margin-bottom: var(--ds-space-050);">Query failed</p>
-        <p style="font: var(--ds-font-body-small); color: var(--ds-text-danger);">${err.message}</p>
+      <div class="jql-error-box">
+        <p class="jql-error-title">Query failed</p>
+        <p class="jql-error-message">${err.message}</p>
       </div>
     `;
   }

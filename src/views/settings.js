@@ -34,53 +34,53 @@ export function renderSettings() {
     </div>
 
     <!-- Work Week -->
-    <div class="card" id="settings-workweek" style="margin-bottom: var(--ds-space-300);">
-      <h3 style="font: var(--ds-font-heading-small); margin-bottom: var(--ds-space-050);">Work Week</h3>
-      <p style="font: var(--ds-font-body-small); color: var(--ds-text-subtle); margin-bottom: var(--ds-space-200);">Define which days are workdays. This affects calendar highlighting and daily averages.</p>
-      <div id="workweek-toggles" style="display: flex; gap: var(--ds-space-100); flex-wrap: wrap;">
+    <div class="card mb-300" id="settings-workweek">
+      <h3 class="settings-section-title">Work Week</h3>
+      <p class="settings-section-desc">Define which days are workdays. This affects calendar highlighting and daily averages.</p>
+      <div id="workweek-toggles" class="settings-workweek-row">
         ${renderWorkWeekToggles(settings.workWeek)}
       </div>
     </div>
 
     <!-- Expected Hours -->
-    <div class="card" id="settings-expected-hours" style="margin-bottom: var(--ds-space-300);">
-      <h3 style="font: var(--ds-font-heading-small); margin-bottom: var(--ds-space-050);">Expected Work Hours</h3>
-      <p style="font: var(--ds-font-body-small); color: var(--ds-text-subtle); margin-bottom: var(--ds-space-200);">Expected work hours per day. Used to color-code daily logs.</p>
-      <div style="display: flex; align-items: center; gap: var(--ds-space-150);">
-        <input class="input" type="number" id="expected-hours-input" min="1" max="24" step="0.5" value="${settings.expectedHoursPerDay}" style="width: 100px;" />
-        <span style="font: var(--ds-font-body); color: var(--ds-text-subtle);">hours per day</span>
+    <div class="card mb-300" id="settings-expected-hours">
+      <h3 class="settings-section-title">Expected Work Hours</h3>
+      <p class="settings-section-desc">Expected work hours per day. Used to color-code daily logs.</p>
+      <div class="settings-hours-row">
+        <input class="input settings-hours-input" type="number" id="expected-hours-input" min="1" max="24" step="0.5" value="${settings.expectedHoursPerDay}" />
+        <span class="settings-hours-label">hours per day</span>
       </div>
     </div>
 
     <!-- Holidays -->
-    <div class="card" id="settings-holidays" style="margin-bottom: var(--ds-space-300);">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-050);">
-        <h3 style="font: var(--ds-font-heading-small);">Holidays</h3>
-        <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
-          <span id="holiday-count" style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest);">${holidays.length} holiday${holidays.length !== 1 ? 's' : ''}</span>
-          ${holidays.length > 0 ? `<button class="btn btn-subtle" id="clear-holidays-btn" style="height: 28px; font-size: 12px; color: var(--ds-text-danger);">Clear All</button>` : ''}
-          <label class="btn btn-primary" style="height: 32px; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: var(--ds-space-075);">
+    <div class="card mb-300" id="settings-holidays">
+      <div class="settings-section-title-row">
+        <h3 class="text-heading-small">Holidays</h3>
+        <div class="flex-row-gap-100">
+          <span id="holiday-count" class="settings-holiday-count">${holidays.length} holiday${holidays.length !== 1 ? 's' : ''}</span>
+          ${holidays.length > 0 ? `<button class="btn btn-subtle settings-clear-holidays-btn" id="clear-holidays-btn">Clear All</button>` : ''}
+          <label class="btn btn-primary settings-upload-label">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Upload Excel
-            <input type="file" id="holiday-upload" accept=".xlsx,.xls,.csv" style="display: none;" />
+            <input type="file" id="holiday-upload" accept=".xlsx,.xls,.csv" class="d-none" />
           </label>
         </div>
       </div>
-      <p style="font: var(--ds-font-body-small); color: var(--ds-text-subtle); margin-bottom: var(--ds-space-200);">Upload an Excel file (.xlsx, .xls, .csv) with <strong>Date</strong> and <strong>Holiday Name</strong> columns. The dates will be marked as holidays across the application.</p>
+      <p class="settings-section-desc">Upload an Excel file (.xlsx, .xls, .csv) with <strong>Date</strong> and <strong>Holiday Name</strong> columns. The dates will be marked as holidays across the application.</p>
       <div id="holiday-list">
         ${renderHolidayList(holidays)}
       </div>
     </div>
 
     <!-- User Groups -->
-    <div class="card" id="settings-groups" style="margin-bottom: var(--ds-space-300);">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-050);">
-        <h3 style="font: var(--ds-font-heading-small);">User Groups</h3>
-        <button class="btn btn-primary" id="add-group-btn" style="height: 32px; font-size: 13px;">
+    <div class="card mb-300" id="settings-groups">
+      <div class="settings-section-title-row">
+        <h3 class="text-heading-small">User Groups</h3>
+        <button class="btn btn-primary settings-add-group-btn" id="add-group-btn">
           + New Group
         </button>
       </div>
-      <p style="font: var(--ds-font-body-small); color: var(--ds-text-subtle); margin-bottom: var(--ds-space-200);">Create reusable groups of team members for quick selection in reports.</p>
+      <p class="settings-section-desc">Create reusable groups of team members for quick selection in reports.</p>
       <div id="groups-list">
         ${renderGroupsList(settings.groups || [])}
       </div>
@@ -110,18 +110,18 @@ function renderWorkWeekToggles(workWeek) {
 
 function renderHolidayList(holidays) {
   if (!holidays.length) {
-    return `<div style="text-align: center; padding: var(--ds-space-200); color: var(--ds-text-subtlest); font: var(--ds-font-body-small);">No holidays uploaded yet. Upload an Excel file to add holidays.</div>`;
+    return `<div class="settings-empty-state">No holidays uploaded yet. Upload an Excel file to add holidays.</div>`;
   }
   // Sort by date
   const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
   return `
     <div class="settings-holiday-table-wrap">
-      <table class="table" style="font-size: 13px;">
+      <table class="table settings-holiday-table">
         <thead>
           <tr>
-            <th style="width: 140px;">Date</th>
+            <th class="settings-holiday-date-col">Date</th>
             <th>Holiday Name</th>
-            <th style="width: 40px;"></th>
+            <th class="settings-holiday-action-col"></th>
           </tr>
         </thead>
         <tbody>
@@ -129,10 +129,10 @@ function renderHolidayList(holidays) {
     const d = new Date(h.date + 'T00:00:00');
     return `
               <tr>
-                <td style="font-weight: var(--ds-font-weight-medium);">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
+                <td class="text-medium">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                 <td>${h.name || '—'}</td>
                 <td>
-                  <button class="btn btn-subtle btn-icon-only settings-remove-holiday" data-date="${h.date}" title="Remove" style="width: 24px; height: 24px;">
+                  <button class="btn btn-subtle btn-icon-only settings-remove-holiday settings-remove-btn" data-date="${h.date}" title="Remove">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </td>
@@ -147,34 +147,34 @@ function renderHolidayList(holidays) {
 
 function renderGroupsList(groups) {
   if (!groups.length) {
-    return `<div style="text-align: center; padding: var(--ds-space-300); color: var(--ds-text-subtlest); font: var(--ds-font-body-small);">No groups created yet. Click "New Group" to get started.</div>`;
+    return `<div class="settings-empty-state-lg">No groups created yet. Click "New Group" to get started.</div>`;
   }
   return groups.map((g, i) => `
     <div class="settings-group-card" data-group-idx="${i}">
       <div class="settings-group-inputs-row">
         <div class="settings-group-field">
           <label class="settings-field-label" for="group-name-${i}">Group Name</label>
-          <input class="input settings-group-name" id="group-name-${i}" data-group-idx="${i}" value="${g.name}" placeholder="Enter group name" style="height: 32px; font-size: 13px; font-weight: 600;" />
+          <input class="input settings-group-name settings-group-name-input" id="group-name-${i}" data-group-idx="${i}" value="${g.name}" placeholder="Enter group name" />
         </div>
-        <div class="settings-group-field" style="position: relative;" id="settings-group-user-search-${i}">
+        <div class="settings-group-field pos-relative" id="settings-group-user-search-${i}">
           <label class="settings-field-label">Search Users</label>
-          <input class="input settings-group-user-search" data-group-idx="${i}" placeholder="Search and add users..." style="height: 32px; font-size: 12px; padding-left: var(--ds-space-300);" />
-          <svg style="position: absolute; left: 8px; bottom: 9px; color: var(--ds-icon-subtle);" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <div class="settings-group-dropdown" data-group-idx="${i}" style="display: none;"></div>
+          <input class="input settings-group-user-search settings-group-search-input" data-group-idx="${i}" placeholder="Search and add users..." />
+          <svg class="settings-group-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <div class="settings-group-dropdown d-none" data-group-idx="${i}"></div>
         </div>
       </div>
       <div class="settings-group-members" id="settings-group-members-${i}">
         ${g.users.map((u, ui) => `
           <span class="settings-user-chip">
-            <span class="avatar avatar-sm" style="width: 18px; height: 18px; font-size: 9px;">${(u.displayName || '?').charAt(0).toUpperCase()}</span>
+            <span class="avatar avatar-sm wl-chip-avatar">${(u.displayName || '?').charAt(0).toUpperCase()}</span>
             ${u.displayName}
             <button class="settings-chip-remove" data-group-idx="${i}" data-user-idx="${ui}" title="Remove">&times;</button>
           </span>
         `).join('')}
       </div>
       <div class="settings-group-footer">
-        <span style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest);">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</span>
-        <button class="btn btn-subtle btn-icon-only settings-delete-group" data-group-idx="${i}" title="Delete group" style="width: 28px; height: 28px;">
+        <span class="settings-group-member-count">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</span>
+        <button class="btn btn-subtle btn-icon-only settings-delete-group settings-delete-group-btn" data-group-idx="${i}" title="Delete group">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
@@ -383,11 +383,11 @@ function attachGroupListeners(settings) {
           const existing = settings.groups[groupIdx].users.map(u => u.accountId);
           const results = users.filter(u => u.accountType === 'atlassian' && !existing.includes(u.accountId));
           if (!results.length) {
-            dropdown.innerHTML = '<div style="padding: 8px 12px; color: var(--ds-text-subtlest); font-size: 12px;">No matching users</div>';
+            dropdown.innerHTML = '<div class="settings-empty-state">No matching users</div>';
           } else {
             dropdown.innerHTML = results.map(u => `
               <div class="settings-dropdown-item" data-account-id="${u.accountId}" data-display-name="${u.displayName}" data-avatar="${u.avatarUrls?.['24x24'] || ''}">
-                <span class="avatar avatar-sm" style="width: 20px; height: 20px; font-size: 10px;">${(u.displayName || '?').charAt(0).toUpperCase()}</span>
+                <span class="avatar avatar-sm wl-chip-avatar">${(u.displayName || '?').charAt(0).toUpperCase()}</span>
                 <span>${u.displayName}</span>
               </div>
             `).join('');
@@ -410,7 +410,7 @@ function attachGroupListeners(settings) {
             });
           });
         } catch {
-          dropdown.innerHTML = '<div style="padding: 8px 12px; color: var(--ds-text-danger); font-size: 12px;">Search failed</div>';
+          dropdown.innerHTML = '<div class="settings-empty-state text-danger">Search failed</div>';
           dropdown.style.display = '';
         }
       }, 300);

@@ -30,25 +30,25 @@ export async function renderDashboard() {
       <p class="page-subtitle">Overview of your Jira projects and reports</p>
     </div>
 
-    <div id="dashboard-stats" class="stat-grid" style="margin-bottom: var(--ds-space-400);">
-      <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
-      <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
-      <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
-      <div class="stat-card skeleton"><div style="height: 60px;"></div></div>
+    <div id="dashboard-stats" class="stat-grid mb-400">
+      <div class="stat-card skeleton"><div class="skeleton-height-60"></div></div>
+      <div class="stat-card skeleton"><div class="skeleton-height-60"></div></div>
+      <div class="stat-card skeleton"><div class="skeleton-height-60"></div></div>
+      <div class="stat-card skeleton"><div class="skeleton-height-60"></div></div>
     </div>
 
-    <div id="dashboard-projects" style="margin-bottom: var(--ds-space-300);">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-200);">
-        <h2 style="font: var(--ds-font-heading-medium);">Projects</h2>
-        <div style="position: relative;">
-          <input class="input" type="search" id="project-search" placeholder="Search projects..." style="width: 240px; padding-left: var(--ds-space-400);" />
-          <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ds-icon-subtle);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <div id="dashboard-projects" class="mb-300">
+      <div class="dashboard-projects-header">
+        <h2 class="text-heading-medium">Projects</h2>
+        <div class="project-search-wrapper">
+          <input class="input project-search-input" type="search" id="project-search" placeholder="Search projects..." />
+          <svg class="search-icon-absolute" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </div>
       </div>
       <div id="projects-grid" class="grid grid-3">
         ${skeletonCards(6)}
       </div>
-      <div id="projects-empty" class="empty-state" style="display: none;">
+      <div id="projects-empty" class="empty-state d-none">
         <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="21" x2="8" y2="3"/></svg>
         <p class="empty-state-title">No projects found</p>
         <p class="empty-state-description">No Jira projects match your search or your account doesn't have access to any projects.</p>
@@ -96,15 +96,15 @@ async function loadStats() {
       </div>
       <div class="stat-card">
         <div class="stat-card-label">To Do</div>
-        <div class="stat-card-value" style="color: var(--ds-text-information);">${summary.toDo}</div>
+        <div class="stat-card-value text-info">${summary.toDo}</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">In Progress</div>
-        <div class="stat-card-value" style="color: var(--ds-text-warning);">${summary.inProgress}</div>
+        <div class="stat-card-value text-warning">${summary.inProgress}</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Done</div>
-        <div class="stat-card-value" style="color: var(--ds-text-success);">${summary.done}</div>
+        <div class="stat-card-value text-success">${summary.done}</div>
       </div>
     `;
   } catch {
@@ -122,31 +122,31 @@ function renderProjectCards(projectList) {
   const empty = document.getElementById('projects-empty');
 
   if (projectList.length === 0) {
-    grid.style.display = 'none';
-    empty.style.display = '';
+    grid.classList.add('d-none');
+    empty.classList.remove('d-none');
     return;
   }
 
-  grid.style.display = '';
-  empty.style.display = 'none';
+  grid.classList.remove('d-none');
+  empty.classList.add('d-none');
 
   grid.innerHTML = projectList.map(project => `
     <div class="card card-interactive project-card" data-project-key="${project.key}" tabindex="0">
       <div class="card-header">
-        <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
+        <div class="flex-row-gap-100">
           ${project.avatarUrls?.['32x32']
-            ? `<img src="${project.avatarUrls['32x32']}" alt="" style="width: 24px; height: 24px; border-radius: var(--ds-radius-100);" />`
-            : `<div class="avatar avatar-sm" style="border-radius: var(--ds-radius-100); font-size: 11px;">${project.key.charAt(0)}</div>`
+            ? `<img src="${project.avatarUrls['32x32']}" alt="" class="project-card-avatar" />`
+            : `<div class="avatar avatar-sm project-card-avatar">${project.key.charAt(0)}</div>`
           }
           <div>
-            <div class="card-title" style="font: var(--ds-font-heading-xsmall);">${project.name}</div>
+            <div class="card-title text-heading-xsmall">${project.name}</div>
             <div class="card-subtitle">${project.key}</div>
           </div>
         </div>
       </div>
       <div class="card-body">
         <span class="lozenge lozenge-info">${project.projectTypeKey || 'software'}</span>
-        ${project.style === 'next-gen' ? '<span class="lozenge lozenge-discovery" style="margin-left: var(--ds-space-050);">Team-managed</span>' : ''}
+        ${project.style === 'next-gen' ? '<span class="lozenge lozenge-discovery ml-050">Team-managed</span>' : ''}
       </div>
     </div>
   `).join('');
@@ -177,7 +177,7 @@ function skeletonCards(count) {
     <div class="card">
       <div class="skeleton skeleton-heading"></div>
       <div class="skeleton skeleton-text"></div>
-      <div class="skeleton skeleton-text" style="width: 40%;"></div>
+      <div class="skeleton skeleton-text skeleton-text-40"></div>
     </div>
   `).join('');
 }

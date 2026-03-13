@@ -52,21 +52,21 @@ export async function renderWorkLog() {
     </div>
 
     <!-- Filters -->
-    <div class="card" id="worklog-filters" style="margin-bottom: var(--ds-space-300);">
-      <div style="display: flex; flex-wrap: wrap; gap: var(--ds-space-300); align-items: flex-end;">
+    <div class="card mb-300" id="worklog-filters">
+      <div class="wl-filters-row">
         
         <!-- User Selector -->
-        <div class="form-group" id="worklog-user-selector" style="flex: 1; min-width: 280px;">
+        <div class="form-group wl-user-selector" id="worklog-user-selector">
           <label class="form-label">Users</label>
-          <div style="position: relative;">
-            <input class="input" type="text" id="user-search" placeholder="Search and add users..." autocomplete="off" style="padding-left: var(--ds-space-400);" />
-            <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ds-icon-subtle);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <div id="user-dropdown" class="user-dropdown" style="display: none;"></div>
+          <div class="pos-relative">
+            <input class="input wl-search-input" type="text" id="user-search" placeholder="Search and add users..." autocomplete="off" />
+            <svg class="wl-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div id="user-dropdown" class="user-dropdown d-none"></div>
           </div>
         </div>
 
         <!-- Date Range -->
-        <div class="form-group" id="worklog-date-range" style="min-width: 200px;">
+        <div class="form-group wl-date-range" id="worklog-date-range">
           <label class="form-label">Period</label>
           <select class="input" id="date-preset">
             <optgroup label="Quick">
@@ -79,20 +79,20 @@ export async function renderWorkLog() {
             <option value="custom">Custom Date</option>
           </select>
         </div>
-        <div class="form-group" id="worklog-date-custom" style="display: none; min-width: 140px;">
+        <div class="form-group wl-date-custom d-none" id="worklog-date-custom">
           <label class="form-label" for="date-from">From</label>
           <input class="input" type="date" id="date-from" value="${dateFrom}" />
         </div>
-        <div class="form-group" id="worklog-date-custom-to" style="display: none; min-width: 140px;">
+        <div class="form-group wl-date-custom d-none" id="worklog-date-custom-to">
           <label class="form-label" for="date-to">To</label>
           <input class="input" type="date" id="date-to" value="${dateTo}" />
         </div>
 
-        <button class="btn btn-primary" id="generate-btn" style="height: 40px;">
+        <button class="btn btn-primary wl-generate-btn" id="generate-btn">
           Generate Report
         </button>
       </div>
-      <div id="user-chips" style="display: flex; flex-wrap: wrap; gap: var(--ds-space-075); margin-top: var(--ds-space-200);">
+      <div id="user-chips" class="wl-user-chips">
         ${renderUserChips()}
       </div>
     </div>
@@ -116,11 +116,11 @@ export async function renderWorkLog() {
   presetSelect.addEventListener('change', () => {
     const val = presetSelect.value;
     if (val === 'custom') {
-      customFrom.style.display = '';
-      customTo.style.display = '';
+      customFrom.classList.remove('d-none');
+      customTo.classList.remove('d-none');
     } else {
-      customFrom.style.display = 'none';
-      customTo.style.display = 'none';
+      customFrom.classList.add('d-none');
+      customTo.classList.add('d-none');
       applyDatePreset(val);
     }
   });
@@ -149,7 +149,7 @@ export async function renderWorkLog() {
   // Close dropdown on outside click
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#user-search') && !e.target.closest('#user-dropdown')) {
-      document.getElementById('user-dropdown').style.display = 'none';
+      document.getElementById('user-dropdown').classList.add('d-none');
     }
   });
 
@@ -162,7 +162,7 @@ export async function renderWorkLog() {
 function renderUserChips() {
   return selectedUsers.map((user, i) => `
     <span class="user-chip" data-index="${i}">
-      <span class="avatar avatar-sm" style="width: 20px; height: 20px; font-size: 10px;">${user.displayName.charAt(0).toUpperCase()}</span>
+      <span class="avatar avatar-sm wl-chip-avatar">${user.displayName.charAt(0).toUpperCase()}</span>
       <span>${user.displayName}</span>
       <button class="user-chip-remove" data-index="${i}" aria-label="Remove ${user.displayName}">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -209,15 +209,15 @@ async function searchAndShowUsers(query) {
     if (matchingGroups.length > 0) {
       html += matchingGroups.map(g => `
         <button class="user-dropdown-item user-dropdown-group" data-group-id="${g.id}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: var(--ds-icon-subtle);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <svg class="dropdown-group-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <div>
-            <div style="font: var(--ds-font-body); font-weight: var(--ds-font-weight-medium);">${g.name}</div>
-            <div style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest);">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</div>
+            <div class="dropdown-item-name">${g.name}</div>
+            <div class="dropdown-item-sub">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</div>
           </div>
         </button>
       `).join('');
       if (filtered.length > 0) {
-        html += '<div style="border-top: 1px solid var(--ds-border); margin: 4px 0;"></div>';
+        html += '<div class="dropdown-separator"></div>';
       }
     }
 
@@ -226,12 +226,12 @@ async function searchAndShowUsers(query) {
       html += filtered.map(u => `
         <button class="user-dropdown-item" data-account-id="${u.accountId}" data-name="${u.displayName}" data-email="${u.emailAddress || ''}" data-avatar="${u.avatarUrls?.['24x24'] || ''}">
           ${u.avatarUrls?.['24x24']
-            ? `<img src="${u.avatarUrls['24x24']}" alt="" style="width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0;" />`
-            : `<span class="avatar avatar-sm" style="width: 24px; height: 24px; font-size: 11px;">${u.displayName.charAt(0).toUpperCase()}</span>`
+            ? `<img src="${u.avatarUrls['24x24']}" alt="" class="dropdown-avatar-img" />`
+            : `<span class="avatar avatar-sm dropdown-avatar-initial">${u.displayName.charAt(0).toUpperCase()}</span>`
           }
           <div>
-            <div style="font: var(--ds-font-body); font-weight: var(--ds-font-weight-medium);">${u.displayName}</div>
-            ${u.emailAddress ? `<div style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest);">${u.emailAddress}</div>` : ''}
+            <div class="dropdown-item-name">${u.displayName}</div>
+            ${u.emailAddress ? `<div class="dropdown-item-sub">${u.emailAddress}</div>` : ''}
           </div>
         </button>
       `).join('');
@@ -242,7 +242,7 @@ async function searchAndShowUsers(query) {
     }
 
     dropdown.innerHTML = html;
-    dropdown.style.display = '';
+    dropdown.classList.remove('d-none');
 
     // Click handler for group items
     dropdown.querySelectorAll('.user-dropdown-group').forEach(item => {
@@ -261,7 +261,7 @@ async function searchAndShowUsers(query) {
           });
           refreshUserChips();
           document.getElementById('user-search').value = '';
-          dropdown.style.display = 'none';
+          dropdown.classList.add('d-none');
         }
       });
     });
@@ -277,7 +277,7 @@ async function searchAndShowUsers(query) {
         });
         refreshUserChips();
         document.getElementById('user-search').value = '';
-        dropdown.style.display = 'none';
+        dropdown.classList.add('d-none');
       });
     });
   } catch (err) {
@@ -447,7 +447,7 @@ async function generateWorklogReport() {
       <div class="wl-tabs" id="wl-tabs">
         ${tabIds.map((id, i) => `
           <button class="wl-tab ${i === 0 ? 'active' : ''}" data-tab="${id}">
-            ${id === 'all' ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` : `<span class="avatar avatar-sm" style="width:18px;height:18px;font-size:9px;flex-shrink:0;">${tabLabels[i].charAt(0).toUpperCase()}</span>`}
+            ${id === 'all' ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` : `<span class="avatar avatar-sm wl-chip-avatar flex-shrink-0">${tabLabels[i].charAt(0).toUpperCase()}</span>`}
             <span>${tabLabels[i]}</span>
           </button>
         `).join('')}
@@ -477,8 +477,8 @@ async function generateWorklogReport() {
       const idx = header.dataset.idx;
       const body = document.getElementById(`wl-body-${idx}`);
       if (!body) return;
-      const isOpen = body.style.display !== 'none';
-      body.style.display = isOpen ? 'none' : '';
+      const isOpen = !body.classList.contains('d-none');
+      body.classList.toggle('d-none', isOpen);
       header.setAttribute('aria-expanded', !isOpen);
       header.classList.toggle('expanded', !isOpen);
     });
@@ -544,11 +544,11 @@ function renderAllUsersPanel(grandTotalSeconds, issueWorklogs, sortedDays, allDa
   const totalEntries = issueWorklogs.reduce((sum, iw) => sum + iw.worklogs.length, 0);
   return `
     <!-- Combined Stats -->
-    <div class="stat-grid" id="all-users-stats" style="margin-bottom: var(--ds-space-300);">
+    <div class="stat-grid mb-300" id="all-users-stats">
       <div class="stat-card">
         <div class="stat-card-label">Total Time Logged</div>
         <div class="stat-card-value">${formatDuration(grandTotalSeconds)}</div>
-        <div class="stat-card-change" style="color: var(--ds-text-subtlest);">${formatHoursDecimal(grandTotalSeconds)}</div>
+        <div class="stat-card-change text-subtlest">${formatHoursDecimal(grandTotalSeconds)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -565,15 +565,15 @@ function renderAllUsersPanel(grandTotalSeconds, issueWorklogs, sortedDays, allDa
     </div>
 
     <!-- Timesheet Matrix -->
-    <div class="card" id="all-users-timesheet" style="margin-bottom: var(--ds-space-300);">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-200); flex-wrap: wrap; gap: var(--ds-space-100);">
-        <h3 style="font: var(--ds-font-heading-small); margin: 0;">Daily Timesheet</h3>
+    <div class="card mb-300" id="all-users-timesheet">
+      <div class="wl-panel-header">
+        <h3 class="text-heading-small m-0">Daily Timesheet</h3>
         <div class="wl-cal-nav">
-          <button class="btn btn-subtle btn-icon-only" id="ts-week-prev" title="Previous week" style="width: 28px; height: 28px;">
+          <button class="btn btn-subtle btn-icon-only wl-nav-btn" id="ts-week-prev" title="Previous week">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <span class="wl-cal-label" id="ts-week-label" style="min-width: 160px;"></span>
-          <button class="btn btn-subtle btn-icon-only" id="ts-week-next" title="Next week" style="width: 28px; height: 28px;">
+          <span class="wl-cal-label" id="ts-week-label"></span>
+          <button class="btn btn-subtle btn-icon-only wl-nav-btn" id="ts-week-next" title="Next week">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </div>
@@ -631,9 +631,9 @@ function renderTimesheetWeek() {
     weekGrandTotal += rowTotal;
     return `<tr>
       <td class="wl-matrix-user-cell">
-        <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
-          <span class="avatar avatar-sm" style="width: 24px; height: 24px; font-size: 11px; flex-shrink: 0;">${userData.name.charAt(0).toUpperCase()}</span>
-          <span style="font-weight: var(--ds-font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userData.name}</span>
+        <div class="wl-matrix-user-row">
+          <span class="avatar avatar-sm wl-matrix-avatar">${userData.name.charAt(0).toUpperCase()}</span>
+          <span class="wl-matrix-user-name">${userData.name}</span>
         </div>
       </td>
       ${cells}
@@ -644,7 +644,7 @@ function renderTimesheetWeek() {
   const footerCells = weekDays.map(day => {
     const colTotal = Object.values(userMatrix).reduce((s, u) => s + (u.days[day] || 0), 0);
     const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
-    return `<td class="wl-matrix-cell ${isWeekend ? 'wl-weekend' : ''}" style="font-weight: var(--ds-font-weight-semibold);">
+    return `<td class="wl-matrix-cell ${isWeekend ? 'wl-weekend' : ''} text-semibold">
       ${colTotal > 0 ? formatDurationCompact(colTotal) : '—'}
     </td>`;
   }).join('');
@@ -671,9 +671,9 @@ function renderTimesheetWeek() {
         <tbody>${rows}</tbody>
         <tfoot>
           <tr class="wl-matrix-footer-row">
-            <td style="font-weight: var(--ds-font-weight-semibold);">Total</td>
+            <td class="text-semibold">Total</td>
             ${footerCells}
-            <td class="wl-matrix-total-cell" style="font-weight: var(--ds-font-weight-bold);">${formatDuration(weekGrandTotal)}<div class="wl-cell-hours">${formatHoursDecimal(weekGrandTotal)}</div></td>
+            <td class="wl-matrix-total-cell text-bold">${formatDuration(weekGrandTotal)}<div class="wl-cell-hours">${formatHoursDecimal(weekGrandTotal)}</div></td>
           </tr>
         </tfoot>
       </table>
@@ -695,11 +695,11 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
 
   return `
     <!-- User Stats -->
-    <div class="stat-grid" id="user-stats-${tabId}" style="margin-bottom: var(--ds-space-300);">
+    <div class="stat-grid mb-300" id="user-stats-${tabId}">
       <div class="stat-card">
         <div class="stat-card-label">Time Logged</div>
         <div class="stat-card-value">${formatDuration(totalSeconds)}</div>
-        <div class="stat-card-change" style="color: var(--ds-text-subtlest);">${formatHoursDecimal(totalSeconds)}</div>
+        <div class="stat-card-change text-subtlest">${formatHoursDecimal(totalSeconds)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -716,16 +716,16 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
     </div>
 
     <!-- Daily Calendar -->
-    <div class="card" id="user-daily-${tabId}" style="margin-bottom: var(--ds-space-300);">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-200); flex-wrap: wrap; gap: var(--ds-space-100);">
-        <h3 style="font: var(--ds-font-heading-small); margin: 0;">Daily Breakdown</h3>
-        <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
+    <div class="card mb-300" id="user-daily-${tabId}">
+      <div class="wl-panel-header">
+        <h3 class="text-heading-small m-0">Daily Breakdown</h3>
+        <div class="wl-panel-controls">
           <div class="wl-cal-nav">
-            <button class="btn btn-subtle btn-icon-only wl-cal-prev" data-tab="${tabId}" title="Previous" style="width: 28px; height: 28px;">
+            <button class="btn btn-subtle btn-icon-only wl-cal-prev wl-nav-btn" data-tab="${tabId}" title="Previous">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
             <span class="wl-cal-label" id="cal-label-${tabId}"></span>
-            <button class="btn btn-subtle btn-icon-only wl-cal-next" data-tab="${tabId}" title="Next" style="width: 28px; height: 28px;">
+            <button class="btn btn-subtle btn-icon-only wl-cal-next wl-nav-btn" data-tab="${tabId}" title="Next">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
@@ -736,11 +736,11 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
         </div>
       </div>
       <div class="wl-calendar-grid" id="cal-grid-${tabId}" data-days='${JSON.stringify(days)}' data-expected="${expectedHours}"></div>
-      <div class="wl-cal-legend" style="margin-top: var(--ds-space-150);">
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot" style="background: var(--ds-background-success);"></span> ≥ ${expectedHours}h</span>
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot" style="background: var(--ds-background-warning);"></span> &lt; ${expectedHours}h</span>
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot" style="background: var(--ds-background-danger);"></span> No log (workday)</span>
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot" style="background: var(--ds-background-neutral);"></span> Holiday</span>
+      <div class="wl-cal-legend mt-150">
+        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-success"></span> ≥ ${expectedHours}h</span>
+        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-warning"></span> &lt; ${expectedHours}h</span>
+        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-danger"></span> No log (workday)</span>
+        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-neutral"></span> Holiday</span>
       </div>
     </div>
 
@@ -748,8 +748,8 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
     <div class="wl-day-modal-overlay" id="day-modal-${tabId}" style="display: none;">
       <div class="wl-day-modal">
         <div class="wl-day-modal-header">
-          <h3 id="day-modal-title-${tabId}" style="font: var(--ds-font-heading-small); margin: 0;"></h3>
-          <button class="btn btn-subtle btn-icon-only wl-day-modal-close" data-tab="${tabId}" style="width: 28px; height: 28px;">
+          <h3 id="day-modal-title-${tabId}" class="wl-modal-title"></h3>
+          <button class="btn btn-subtle btn-icon-only wl-day-modal-close wl-nav-btn" data-tab="${tabId}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -759,10 +759,10 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
 
     <!-- Task Details -->
     <div class="card" id="user-tasks-${tabId}">
-      <h3 style="font: var(--ds-font-heading-small); margin-bottom: var(--ds-space-150);">Task Details</h3>
-      <div style="display: flex; gap: var(--ds-space-100); margin-bottom: var(--ds-space-200); flex-wrap: wrap;">
-        <input class="input wl-task-search" data-tab="${tabId}" type="text" placeholder="Search by task name or key..." style="flex: 1; min-width: 200px; height: 32px; font-size: 13px;" />
-        <select class="input wl-task-status-filter" data-tab="${tabId}" style="width: auto; min-width: 140px; height: 32px; font-size: 13px;">
+      <h3 class="text-heading-small mb-150">Task Details</h3>
+      <div class="wl-task-filters-row">
+        <input class="input input-compact wl-task-search wl-task-search-input" data-tab="${tabId}" type="text" placeholder="Search by task name or key..." />
+        <select class="input input-compact wl-task-status-filter wl-task-status-select" data-tab="${tabId}">
           <option value="">All statuses</option>
           ${allStatuses.map(s => `<option value="${s}">${s}</option>`).join('')}
         </select>
@@ -786,20 +786,20 @@ function renderTaskAccordionItems(issues, jiraUrl, tabId) {
             <span class="wl-issue-summary">${iw.issue.fields?.summary || ''}</span>
           </div>
           <div class="wl-accordion-right">
-            <span class="lozenge lozenge-default" style="flex-shrink: 0;">${iw.issue.fields?.project?.name || iw.issue.fields?.project?.key || ''}</span>
-            <span class="lozenge ${getStatusLozengeClass(iw.issue.fields?.status?.statusCategory?.key)}" style="flex-shrink: 0;">${iw.issue.fields?.status?.name || ''}</span>
+            <span class="lozenge lozenge-default flex-shrink-0">${iw.issue.fields?.project?.name || iw.issue.fields?.project?.key || ''}</span>
+            <span class="lozenge ${getStatusLozengeClass(iw.issue.fields?.status?.statusCategory?.key)} flex-shrink-0">${iw.issue.fields?.status?.name || ''}</span>
             <span class="wl-time-badge">${formatDuration(iw.totalSeconds)}</span>
           </div>
         </button>
-        <div class="wl-accordion-body" id="${bodyId}" style="display: none;">
-          <table class="table" style="margin: 0;">
+        <div class="wl-accordion-body d-none" id="${bodyId}">
+          <table class="table wl-table-no-margin">
             <thead><tr><th>Date</th><th>Time Spent</th><th>Comment</th></tr></thead>
             <tbody>
               ${iw.worklogs.sort((a, b) => new Date(a.started) - new Date(b.started)).map(wl => `
                 <tr>
-                  <td style="font: var(--ds-font-body-small); white-space: nowrap;">${wl.started ? new Date(wl.started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
-                  <td style="font-weight: var(--ds-font-weight-medium);">${wl.timeSpent || formatDuration(wl.timeSpentSeconds || 0)}</td>
-                  <td style="font: var(--ds-font-body-small); color: var(--ds-text-subtle); max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${extractComment(wl.comment) || '—'}</td>
+                  <td class="wl-worklog-date-cell">${wl.started ? new Date(wl.started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
+                  <td class="text-medium">${wl.timeSpent || formatDuration(wl.timeSpentSeconds || 0)}</td>
+                  <td class="wl-worklog-comment-cell">${extractComment(wl.comment) || '—'}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -995,7 +995,7 @@ function showDayModal(tabId, dateStr) {
 
   // Find all tasks with worklogs on this day
   const { userData } = state;
-  if (!userData) { contentEl.innerHTML = '<p style="color: var(--ds-text-subtlest);">No data</p>'; modal.style.display = ''; return; }
+  if (!userData) { contentEl.innerHTML = '<p class="text-subtlest">No data</p>'; modal.style.display = ''; return; }
 
   const jiraUrl = state.jiraUrl || '';
   const dayTasks = [];
@@ -1008,26 +1008,26 @@ function showDayModal(tabId, dateStr) {
   });
 
   if (dayTasks.length === 0) {
-    contentEl.innerHTML = '<p style="padding: var(--ds-space-200); color: var(--ds-text-subtlest); text-align: center;">No work logged on this day.</p>';
+    contentEl.innerHTML = '<p class="settings-empty-state">No work logged on this day.</p>';
   } else {
     const totalDaySec = dayTasks.reduce((s, t) => s + t.totalSeconds, 0);
     contentEl.innerHTML = `
-      <div style="margin-bottom: var(--ds-space-150); font: var(--ds-font-body-small); color: var(--ds-text-subtle);">
+      <div class="jql-results-summary">
         Total: <strong>${formatDuration(totalDaySec)}</strong> across ${dayTasks.length} task${dayTasks.length !== 1 ? 's' : ''}
       </div>
       ${dayTasks.map(t => `
-        <div style="border: 1px solid var(--ds-border); border-radius: var(--ds-radius-200); padding: var(--ds-space-150); margin-bottom: var(--ds-space-100);">
-          <div style="display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-100); margin-bottom: var(--ds-space-075);">
-            <div style="display: flex; align-items: center; gap: var(--ds-space-075); min-width: 0;">
+        <div class="wl-day-task-card">
+          <div class="wl-day-task-header">
+            <div class="flex-row-gap-075" style="min-width: 0;">
               <a href="${jiraUrl}/browse/${t.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${t.issue.key}</a>
-              <span style="font: var(--ds-font-body-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.issue.fields?.summary || ''}</span>
+              <span class="text-body-small text-truncate">${t.issue.fields?.summary || ''}</span>
             </div>
             <span class="wl-time-badge">${formatDuration(t.totalSeconds)}</span>
           </div>
           ${t.worklogs.map(wl => `
-            <div style="display: flex; justify-content: space-between; padding: 4px 0; font: var(--ds-font-body-small); color: var(--ds-text-subtle); border-top: 1px solid var(--ds-border);">
+            <div class="wl-day-wl-entry">
               <span>${wl.timeSpent || formatDuration(wl.timeSpentSeconds || 0)}</span>
-              <span style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${extractComment(wl.comment) || '—'}</span>
+              <span class="wl-day-wl-comment">${extractComment(wl.comment) || '—'}</span>
             </div>
           `).join('')}
         </div>

@@ -59,11 +59,11 @@ export function renderAppShell(container, activeView = 'dashboard') {
         </nav>
 
         <div class="sidebar-footer" id="sidebar-user-info">
-          <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
+          <div class="sidebar-user-row">
             <div class="avatar avatar-sm">${initials}</div>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font: var(--ds-font-body-small); font-weight: var(--ds-font-weight-medium); color: var(--ds-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${user?.displayName || 'User'}</div>
-              <div style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${user?.emailAddress || ''}</div>
+            <div class="sidebar-user-info-col">
+              <div class="sidebar-user-name">${user?.displayName || 'User'}</div>
+              <div class="sidebar-user-email">${user?.emailAddress || ''}</div>
             </div>
           </div>
         </div>

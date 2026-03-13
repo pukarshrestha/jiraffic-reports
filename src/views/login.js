@@ -54,16 +54,15 @@ export function renderLogin() {
 
           <div class="form-group">
             <label class="form-label" for="jira-token">API Token</label>
-            <div style="position: relative;">
+            <div class="login-token-wrapper">
               <input
-                class="input"
+                class="input login-token-input"
                 type="password"
                 id="jira-token"
                 placeholder="Your Jira API token"
                 required
-                style="padding-right: 40px;"
               />
-              <button type="button" id="toggle-token-visibility" class="btn-subtle btn-icon-only" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: var(--ds-radius-100);" aria-label="Toggle token visibility">
+              <button type="button" id="toggle-token-visibility" class="btn-subtle btn-icon-only login-token-toggle" aria-label="Toggle token visibility">
                 <svg id="eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                   <circle cx="12" cy="12" r="3"/>
@@ -80,13 +79,13 @@ export function renderLogin() {
             <label for="remember-me">Remember me</label>
           </div>
 
-          <button type="submit" class="btn btn-primary" id="login-btn" style="width: 100%; height: 40px; margin-top: var(--ds-space-100);">
+          <button type="submit" class="btn btn-primary login-submit-btn" id="login-btn">
             <span id="login-btn-text">Connect to Jira</span>
-            <div id="login-spinner" class="spinner spinner-sm" style="display: none; border-top-color: var(--ds-text-inverse);"></div>
+            <div id="login-spinner" class="spinner spinner-sm login-spinner-inline d-none"></div>
           </button>
 
-          <div id="login-error" style="display: none; padding: var(--ds-space-150); background-color: var(--ds-background-danger); border-radius: var(--ds-radius-100); margin-top: var(--ds-space-100);">
-            <p style="font: var(--ds-font-body-small); color: var(--ds-text-danger);" id="login-error-text"></p>
+          <div id="login-error" class="login-error-box d-none">
+            <p class="login-error-text" id="login-error-text"></p>
           </div>
         </form>
 
@@ -135,8 +134,8 @@ async function handleLogin() {
   // Show loading state
   loginBtn.disabled = true;
   loginBtnText.textContent = 'Connecting...';
-  loginSpinner.style.display = '';
-  errorDiv.style.display = 'none';
+  loginSpinner.classList.remove('d-none');
+  errorDiv.classList.add('d-none');
 
   try {
     const result = await validateCredentials(jiraUrl, email, apiToken);
@@ -154,11 +153,11 @@ async function handleLogin() {
   } finally {
     loginBtn.disabled = false;
     loginBtnText.textContent = 'Connect to Jira';
-    loginSpinner.style.display = 'none';
+    loginSpinner.classList.add('d-none');
   }
 }
 
 function showError(errorDiv, errorText, msg) {
   errorText.textContent = msg;
-  errorDiv.style.display = '';
+  errorDiv.classList.remove('d-none');
 }

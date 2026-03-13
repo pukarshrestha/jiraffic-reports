@@ -1,0 +1,663 @@
+/* ==========================================================================
+   View Utilities — Classes extracted from inline styles
+   ========================================================================== */
+
+/* ── Spacing / Layout Helpers ─────────────────────── */
+.mb-050 { margin-bottom: var(--ds-space-050); }
+.mb-100 { margin-bottom: var(--ds-space-100); }
+.mb-150 { margin-bottom: var(--ds-space-150); }
+.mb-200 { margin-bottom: var(--ds-space-200); }
+.mb-300 { margin-bottom: var(--ds-space-300); }
+.mb-400 { margin-bottom: var(--ds-space-400); }
+.mt-100 { margin-top: var(--ds-space-100); }
+.mt-150 { margin-top: var(--ds-space-150); }
+.mt-200 { margin-top: var(--ds-space-200); }
+.ml-050 { margin-left: var(--ds-space-050); }
+.gap-075 { gap: var(--ds-space-075); }
+.gap-100 { gap: var(--ds-space-100); }
+.gap-150 { gap: var(--ds-space-150); }
+.gap-200 { gap: var(--ds-space-200); }
+.gap-300 { gap: var(--ds-space-300); }
+.flex-1 { flex: 1; }
+.flex-shrink-0 { flex-shrink: 0; }
+.w-full { width: 100%; }
+.pos-relative { position: relative; }
+.d-none { display: none; }
+
+/* ── Flex Layouts ──────────────────────────────────── */
+.flex-row {
+  display: flex;
+  align-items: center;
+}
+
+.flex-row-gap-075 {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+}
+
+.flex-row-gap-100 {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.flex-row-gap-150 {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-150);
+}
+
+.flex-row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Typography Helpers ───────────────────────────── */
+.text-heading-small {
+  font: var(--ds-font-heading-small);
+}
+
+.text-heading-medium {
+  font: var(--ds-font-heading-medium);
+}
+
+.text-heading-xsmall {
+  font: var(--ds-font-heading-xsmall);
+}
+
+.text-body {
+  font: var(--ds-font-body);
+}
+
+.text-body-small {
+  font: var(--ds-font-body-small);
+}
+
+.text-medium {
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.text-semibold {
+  font-weight: var(--ds-font-weight-semibold);
+}
+
+.text-bold {
+  font-weight: var(--ds-font-weight-bold);
+}
+
+.text-subtle {
+  color: var(--ds-text-subtle);
+}
+
+.text-subtlest {
+  color: var(--ds-text-subtlest);
+}
+
+.text-info {
+  color: var(--ds-text-information);
+}
+
+.text-warning {
+  color: var(--ds-text-warning);
+}
+
+.text-success {
+  color: var(--ds-text-success);
+}
+
+.text-danger {
+  color: var(--ds-text-danger);
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-nowrap {
+  white-space: nowrap;
+}
+
+.m-0 { margin: 0; }
+
+/* ── Sidebar / Shell ──────────────────────────────── */
+.sidebar-user-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.sidebar-user-info-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-user-email {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Login ────────────────────────────────────────── */
+.login-token-wrapper {
+  position: relative;
+}
+
+.login-token-input {
+  padding-right: 40px;
+}
+
+.login-token-toggle {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ds-radius-100);
+}
+
+.login-submit-btn {
+  width: 100%;
+  height: 40px;
+  margin-top: var(--ds-space-100);
+}
+
+.login-spinner-inline {
+  border-top-color: var(--ds-text-inverse);
+}
+
+.login-error-box {
+  padding: var(--ds-space-150);
+  background-color: var(--ds-background-danger);
+  border-radius: var(--ds-radius-100);
+  margin-top: var(--ds-space-100);
+}
+
+.login-error-text {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-danger);
+}
+
+/* ── Dashboard ────────────────────────────────────── */
+.skeleton-height-60 {
+  height: 60px;
+}
+
+.dashboard-projects-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-space-200);
+}
+
+.project-search-wrapper {
+  position: relative;
+}
+
+.project-search-input {
+  width: 240px;
+  padding-left: var(--ds-space-400);
+}
+
+.search-icon-absolute {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ds-icon-subtle);
+}
+
+.project-card-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--ds-radius-100);
+}
+
+.skeleton-text-40 {
+  width: 40%;
+}
+
+/* ── JQL / Report ─────────────────────────────────── */
+.jql-input-row {
+  display: flex;
+  gap: var(--ds-space-100);
+}
+
+.jql-results-summary {
+  margin-bottom: var(--ds-space-150);
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtle);
+}
+
+.jql-error-box {
+  padding: var(--ds-space-200);
+  background-color: var(--ds-background-danger);
+  border-radius: var(--ds-radius-200);
+}
+
+.jql-error-title {
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-medium);
+  color: var(--ds-text-danger);
+  margin-bottom: var(--ds-space-050);
+}
+
+.jql-error-message {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-danger);
+}
+
+.issue-key-link {
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.issue-summary-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignee-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+}
+
+.date-cell {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtle);
+  white-space: nowrap;
+}
+
+.unassigned-text {
+  color: var(--ds-text-subtlest);
+}
+
+/* ── Worklog Filters ──────────────────────────────── */
+.wl-filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-300);
+  align-items: flex-end;
+}
+
+.wl-user-selector {
+  flex: 1;
+  min-width: 280px;
+}
+
+.wl-date-range {
+  min-width: 200px;
+}
+
+.wl-date-custom {
+  min-width: 140px;
+}
+
+.wl-generate-btn {
+  height: 40px;
+}
+
+.wl-user-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-075);
+  margin-top: var(--ds-space-200);
+}
+
+.wl-search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ds-icon-subtle);
+}
+
+.wl-search-input {
+  padding-left: var(--ds-space-400);
+}
+
+/* ── Worklog Dropdown ─────────────────────────────── */
+.dropdown-group-icon {
+  flex-shrink: 0;
+  color: var(--ds-icon-subtle);
+}
+
+.dropdown-item-name {
+  font: var(--ds-font-body);
+  font-weight: var(--ds-font-weight-medium);
+}
+
+.dropdown-item-sub {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+}
+
+.dropdown-separator {
+  border-top: 1px solid var(--ds-border);
+  margin: 4px 0;
+}
+
+.dropdown-avatar-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dropdown-avatar-initial {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+}
+
+/* ── Worklog User Chip ────────────────────────────── */
+.wl-chip-avatar {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+}
+
+.wl-chip-avatar-img {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+}
+
+/* ── Worklog Panels ───────────────────────────────── */
+.wl-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-space-200);
+  flex-wrap: wrap;
+  gap: var(--ds-space-100);
+}
+
+.wl-panel-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+.wl-nav-btn {
+  width: 28px;
+  height: 28px;
+}
+
+.wl-task-search-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.wl-task-status-select {
+  width: auto;
+  min-width: 140px;
+}
+
+.wl-task-filters-row {
+  display: flex;
+  gap: var(--ds-space-100);
+  margin-bottom: var(--ds-space-200);
+  flex-wrap: wrap;
+}
+
+/* ── Worklog Task Accordion ───────────────────────── */
+.wl-table-no-margin {
+  margin: 0;
+}
+
+.wl-worklog-date-cell {
+  font: var(--ds-font-body-small);
+  white-space: nowrap;
+}
+
+.wl-worklog-comment-cell {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtle);
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Worklog Timesheet Matrix ─────────────────────── */
+.wl-matrix-avatar {
+  width: 24px;
+  height: 24px;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.wl-matrix-user-name {
+  font-weight: var(--ds-font-weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wl-matrix-user-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+}
+
+/* ── Worklog Day Modal ────────────────────────────── */
+.wl-modal-title {
+  font: var(--ds-font-heading-small);
+  margin: 0;
+}
+
+/* ── Settings Section Description ─────────────────── */
+.settings-section-desc {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtle);
+  margin-bottom: var(--ds-space-200);
+}
+
+.settings-section-title {
+  font: var(--ds-font-heading-small);
+  margin-bottom: var(--ds-space-050);
+}
+
+.settings-section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-space-050);
+}
+
+/* ── Settings Work Week ───────────────────────────── */
+.settings-workweek-row {
+  display: flex;
+  gap: var(--ds-space-100);
+  flex-wrap: wrap;
+}
+
+/* ── Settings Expected Hours ──────────────────────── */
+.settings-hours-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-150);
+}
+
+.settings-hours-input {
+  width: 100px;
+}
+
+.settings-hours-label {
+  font: var(--ds-font-body);
+  color: var(--ds-text-subtle);
+}
+
+/* ── Settings Holidays ────────────────────────────── */
+.settings-holiday-count {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+}
+
+.settings-clear-holidays-btn {
+  height: 28px;
+  font-size: 12px;
+  color: var(--ds-text-danger);
+}
+
+.settings-upload-label {
+  height: 32px;
+  font-size: 13px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-075);
+}
+
+.settings-holiday-table {
+  font-size: 13px;
+}
+
+.settings-holiday-date-col {
+  width: 140px;
+}
+
+.settings-holiday-action-col {
+  width: 40px;
+}
+
+.settings-remove-btn {
+  width: 24px;
+  height: 24px;
+}
+
+.settings-empty-state {
+  text-align: center;
+  padding: var(--ds-space-200);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+}
+
+.settings-empty-state-lg {
+  text-align: center;
+  padding: var(--ds-space-300);
+  color: var(--ds-text-subtlest);
+  font: var(--ds-font-body-small);
+}
+
+/* ── Settings Groups ──────────────────────────────── */
+.settings-add-group-btn {
+  height: 32px;
+  font-size: 13px;
+}
+
+.settings-group-name-input {
+  height: 32px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-group-search-input {
+  height: 32px;
+  font-size: 12px;
+  padding-left: var(--ds-space-300);
+}
+
+.settings-group-search-icon {
+  position: absolute;
+  left: 8px;
+  bottom: 9px;
+  color: var(--ds-icon-subtle);
+}
+
+.settings-group-member-count {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+}
+
+.settings-delete-group-btn {
+  width: 28px;
+  height: 28px;
+}
+
+/* ── Worklog Calendar Legend Dots ──────────────────── */
+.wl-legend-dot-success {
+  background: var(--ds-background-success);
+}
+
+.wl-legend-dot-warning {
+  background: var(--ds-background-warning);
+}
+
+.wl-legend-dot-danger {
+  background: var(--ds-background-danger);
+}
+
+.wl-legend-dot-neutral {
+  background: var(--ds-background-neutral);
+}
+
+/* ── Worklog Day Modal Cards ───────────────────────── */
+.wl-day-task-card {
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  padding: var(--ds-space-150);
+  margin-bottom: var(--ds-space-100);
+}
+
+.wl-day-task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-100);
+  margin-bottom: var(--ds-space-075);
+}
+
+.wl-day-wl-entry {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtle);
+  border-top: 1px solid var(--ds-border);
+}
+
+.wl-day-wl-comment {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Responsive adjustments ───────────────────────── */
+@media (max-width: 768px) {
+  .project-search-input {
+    width: 100%;
+  }
+}

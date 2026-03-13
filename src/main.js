@@ -6,6 +6,7 @@ import './styles/tokens.css';
 import './styles/reset.css';
 import './styles/components.css';
 import './styles/layout.css';
+import './styles/views.css';
 
 import { initTheme } from './utils/theme.js';
 import { registerRoute, initRouter, navigate } from './utils/router.js';
