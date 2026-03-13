@@ -84,7 +84,7 @@
   font-weight: var(--ds-font-weight-medium);
   cursor: pointer;
   transition: background-color var(--ds-duration-fast) var(--ds-easing-standard),
-              color var(--ds-duration-fast) var(--ds-easing-standard);
+    color var(--ds-duration-fast) var(--ds-easing-standard);
   text-decoration: none;
   border: none;
   background: none;
@@ -244,11 +244,11 @@
 }
 
 .theme-toggle-icons .sun-icon {
-  color: var(--ds-icon-warning);
+  color: var(--ds-icon);
 }
 
 .theme-toggle-icons .moon-icon {
-  color: var(--ds-text-inverse);
+  color: var(--ds-icon);
 }
 
 /* ── Page Content ─────────────────────────────────── */
@@ -281,9 +281,17 @@
   gap: var(--ds-space-300);
 }
 
-.grid-2 { grid-template-columns: repeat(2, 1fr); }
-.grid-3 { grid-template-columns: repeat(3, 1fr); }
-.grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
 
 .stat-grid {
   display: grid;
@@ -319,8 +327,13 @@
   margin-top: var(--ds-space-050);
 }
 
-.stat-card-change.positive { color: var(--ds-text-success); }
-.stat-card-change.negative { color: var(--ds-text-danger); }
+.stat-card-change.positive {
+  color: var(--ds-text-success);
+}
+
+.stat-card-change.negative {
+  color: var(--ds-text-danger);
+}
 
 /* ── Login Page Layout ────────────────────────────── */
 .login-page {
@@ -388,8 +401,13 @@
 
 /* ── Responsive ───────────────────────────────────── */
 @media (max-width: 1024px) {
-  .grid-4 { grid-template-columns: repeat(2, 1fr); }
-  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
@@ -413,7 +431,9 @@
     padding: var(--ds-space-200);
   }
 
-  .grid-2, .grid-3, .grid-4 {
+  .grid-2,
+  .grid-3,
+  .grid-4 {
     grid-template-columns: 1fr;
   }
 

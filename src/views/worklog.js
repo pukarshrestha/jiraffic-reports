@@ -14,6 +14,9 @@ let dateFrom = '';
 let dateTo = '';
 let searchTimeout = null;
 
+// Timesheet weekly navigation state
+let timesheetState = { allDays: [], userMatrix: {}, weekIndex: 0, jiraUrl: '' };
+
 export async function renderWorkLog() {
   const creds = getCredentials();
   if (!creds) {
@@ -55,9 +58,6 @@ export async function renderWorkLog() {
         <!-- User Selector -->
         <div class="form-group" id="worklog-user-selector" style="flex: 1; min-width: 280px;">
           <label class="form-label">Users</label>
-          <div id="user-chips" style="display: flex; flex-wrap: wrap; gap: var(--ds-space-075); margin-bottom: var(--ds-space-100);">
-            ${renderUserChips()}
-          </div>
           <div style="position: relative;">
             <input class="input" type="text" id="user-search" placeholder="Search and add users..." autocomplete="off" style="padding-left: var(--ds-space-400);" />
             <svg style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--ds-icon-subtle);" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -88,9 +88,12 @@ export async function renderWorkLog() {
           <input class="input" type="date" id="date-to" value="${dateTo}" />
         </div>
 
-        <button class="btn btn-primary" id="generate-btn" style="height: 36px;">
+        <button class="btn btn-primary" id="generate-btn" style="height: 40px;">
           Generate Report
         </button>
+      </div>
+      <div id="user-chips" style="display: flex; flex-wrap: wrap; gap: var(--ds-space-075); margin-top: var(--ds-space-200);">
+        ${renderUserChips()}
       </div>
     </div>
 
@@ -435,16 +438,16 @@ async function generateWorklogReport() {
       perUserData[userId] = { name: u.displayName, issues: userIssues, totalSeconds: totalSec, days: userDays, daysWithLog };
     });
 
-    // Build tab bar
-    const tabIds = ['all', ...selectedUsers.map(u => u.accountId)];
-    const tabLabels = ['All Users', ...selectedUsers.map(u => u.displayName)];
+    // Build tab bar — users first, "All Users" last
+    const tabIds = [...selectedUsers.map(u => u.accountId), 'all'];
+    const tabLabels = [...selectedUsers.map(u => u.displayName), 'All Users'];
 
     resultsDiv.innerHTML = `
       <!-- Tab Bar -->
       <div class="wl-tabs" id="wl-tabs">
         ${tabIds.map((id, i) => `
           <button class="wl-tab ${i === 0 ? 'active' : ''}" data-tab="${id}">
-            ${i === 0 ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` : `<span class="avatar avatar-sm" style="width:18px;height:18px;font-size:9px;flex-shrink:0;">${tabLabels[i].charAt(0).toUpperCase()}</span>`}
+            ${id === 'all' ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` : `<span class="avatar avatar-sm" style="width:18px;height:18px;font-size:9px;flex-shrink:0;">${tabLabels[i].charAt(0).toUpperCase()}</span>`}
             <span>${tabLabels[i]}</span>
           </button>
         `).join('')}
@@ -482,6 +485,22 @@ async function generateWorklogReport() {
 
     // Initialize calendars for each user tab
     initCalendars(perUserData, issueWorklogs, jiraUrl);
+
+    // Initialize timesheet weekly navigation
+    timesheetState = { allDays: allDaysInRange, userMatrix: userDayMatrix, weekIndex: 0, jiraUrl };
+    renderTimesheetWeek();
+    document.getElementById('ts-week-prev')?.addEventListener('click', () => {
+      if (timesheetState.weekIndex > 0) {
+        timesheetState.weekIndex--;
+        renderTimesheetWeek();
+      }
+    });
+    document.getElementById('ts-week-next')?.addEventListener('click', () => {
+      if (timesheetState.weekIndex < getTimesheetTotalWeeks() - 1) {
+        timesheetState.weekIndex++;
+        renderTimesheetWeek();
+      }
+    });
 
     // Task search/status filter handlers
     resultsDiv.addEventListener('input', (e) => {
@@ -547,70 +566,117 @@ function renderAllUsersPanel(grandTotalSeconds, issueWorklogs, sortedDays, allDa
 
     <!-- Timesheet Matrix -->
     <div class="card" id="all-users-timesheet" style="margin-bottom: var(--ds-space-300);">
-      <h3 style="font: var(--ds-font-heading-small); margin-bottom: var(--ds-space-200);">Daily Timesheet</h3>
-      <div class="table-container">
-        <table class="table wl-matrix-table">
-          <thead>
-            <tr>
-              <th class="wl-matrix-user-col">Team Member</th>
-              ${allDaysInRange.map(day => {
-                const d = new Date(day + 'T00:00:00');
-                const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-                return `<th class="wl-matrix-day-col ${isWeekend ? 'wl-weekend' : ''}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}">
-                  <div class="wl-day-header">
-                    <span class="wl-day-name">${d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
-                    <span class="wl-day-date">${d.getDate()}</span>
-                  </div>
-                </th>`;
-              }).join('')}
-              <th class="wl-matrix-total-col">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${Object.entries(userDayMatrix).map(([userId, userData]) => {
-              const rowTotal = Object.values(userData.days).reduce((s, v) => s + v, 0);
-              return `
-                <tr>
-                  <td class="wl-matrix-user-cell">
-                    <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
-                      <span class="avatar avatar-sm" style="width: 24px; height: 24px; font-size: 11px; flex-shrink: 0;">${userData.name.charAt(0).toUpperCase()}</span>
-                      <span style="font-weight: var(--ds-font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userData.name}</span>
-                    </div>
-                  </td>
-                  ${allDaysInRange.map(day => {
-                    const seconds = userData.days[day] || 0;
-                    const hours = seconds / 3600;
-                    const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
-                    let cellClass = isWeekend ? 'wl-weekend' : '';
-                    if (seconds > 0) {
-                      if (hours >= 8) cellClass += ' wl-cell-full';
-                      else if (hours >= 4) cellClass += ' wl-cell-half';
-                      else cellClass += ' wl-cell-light';
-                    }
-                    return `<td class="wl-matrix-cell ${cellClass}" title="${userData.name}: ${formatDuration(seconds)} on ${day}">
-                      ${seconds > 0 ? formatDurationCompact(seconds) : '<span class="wl-cell-empty">—</span>'}
-                    </td>`;
-                  }).join('')}
-                  <td class="wl-matrix-total-cell">${formatDuration(rowTotal)}<div class="wl-cell-hours">${formatHoursDecimal(rowTotal)}</div></td>
-                </tr>
-              `;
-            }).join('')}
-          </tbody>
-          <tfoot>
-            <tr class="wl-matrix-footer-row">
-              <td style="font-weight: var(--ds-font-weight-semibold);">Total</td>
-              ${allDaysInRange.map(day => {
-                const colTotal = Object.values(userDayMatrix).reduce((s, u) => s + (u.days[day] || 0), 0);
-                const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
-                return `<td class="wl-matrix-cell ${isWeekend ? 'wl-weekend' : ''}" style="font-weight: var(--ds-font-weight-semibold);">
-                  ${colTotal > 0 ? formatDurationCompact(colTotal) : '—'}
-                </td>`;
-              }).join('')}
-              <td class="wl-matrix-total-cell" style="font-weight: var(--ds-font-weight-bold);">${formatDuration(grandTotalSeconds)}<div class="wl-cell-hours">${formatHoursDecimal(grandTotalSeconds)}</div></td>
-            </tr>
-          </tfoot>
-        </table>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-200); flex-wrap: wrap; gap: var(--ds-space-100);">
+        <h3 style="font: var(--ds-font-heading-small); margin: 0;">Daily Timesheet</h3>
+        <div class="wl-cal-nav">
+          <button class="btn btn-subtle btn-icon-only" id="ts-week-prev" title="Previous week" style="width: 28px; height: 28px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="wl-cal-label" id="ts-week-label" style="min-width: 160px;"></span>
+          <button class="btn btn-subtle btn-icon-only" id="ts-week-next" title="Next week" style="width: 28px; height: 28px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
       </div>
+      <div id="ts-week-body"></div>
+    </div>
+  `;
+}
+
+function getTimesheetTotalWeeks() {
+  return Math.max(1, Math.ceil(timesheetState.allDays.length / 7));
+}
+
+function renderTimesheetWeek() {
+  const { allDays, userMatrix, weekIndex } = timesheetState;
+  const totalWeeks = getTimesheetTotalWeeks();
+  const start = weekIndex * 7;
+  const weekDays = allDays.slice(start, start + 7);
+
+  // Update label
+  const labelEl = document.getElementById('ts-week-label');
+  const bodyEl = document.getElementById('ts-week-body');
+  if (!labelEl || !bodyEl || weekDays.length === 0) return;
+
+  const ws = new Date(weekDays[0] + 'T00:00:00');
+  const we = new Date(weekDays[weekDays.length - 1] + 'T00:00:00');
+  labelEl.textContent = `${ws.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${we.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+  // Disable buttons at boundaries
+  const prevBtn = document.getElementById('ts-week-prev');
+  const nextBtn = document.getElementById('ts-week-next');
+  if (prevBtn) prevBtn.disabled = weekIndex <= 0;
+  if (nextBtn) nextBtn.disabled = weekIndex >= totalWeeks - 1;
+
+  // Calculate grand total for this week
+  let weekGrandTotal = 0;
+
+  const rows = Object.entries(userMatrix).map(([userId, userData]) => {
+    let rowTotal = 0;
+    const cells = weekDays.map(day => {
+      const seconds = userData.days[day] || 0;
+      rowTotal += seconds;
+      const hours = seconds / 3600;
+      const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
+      let cellClass = isWeekend ? 'wl-weekend' : '';
+      if (seconds > 0) {
+        if (hours >= 8) cellClass += ' wl-cell-full';
+        else if (hours >= 4) cellClass += ' wl-cell-half';
+        else cellClass += ' wl-cell-light';
+      }
+      return `<td class="wl-matrix-cell ${cellClass}" title="${userData.name}: ${formatDuration(seconds)} on ${day}">
+        ${seconds > 0 ? formatDurationCompact(seconds) : '<span class="wl-cell-empty">—</span>'}
+      </td>`;
+    }).join('');
+    weekGrandTotal += rowTotal;
+    return `<tr>
+      <td class="wl-matrix-user-cell">
+        <div style="display: flex; align-items: center; gap: var(--ds-space-100);">
+          <span class="avatar avatar-sm" style="width: 24px; height: 24px; font-size: 11px; flex-shrink: 0;">${userData.name.charAt(0).toUpperCase()}</span>
+          <span style="font-weight: var(--ds-font-weight-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${userData.name}</span>
+        </div>
+      </td>
+      ${cells}
+      <td class="wl-matrix-total-cell">${formatDuration(rowTotal)}<div class="wl-cell-hours">${formatHoursDecimal(rowTotal)}</div></td>
+    </tr>`;
+  }).join('');
+
+  const footerCells = weekDays.map(day => {
+    const colTotal = Object.values(userMatrix).reduce((s, u) => s + (u.days[day] || 0), 0);
+    const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
+    return `<td class="wl-matrix-cell ${isWeekend ? 'wl-weekend' : ''}" style="font-weight: var(--ds-font-weight-semibold);">
+      ${colTotal > 0 ? formatDurationCompact(colTotal) : '—'}
+    </td>`;
+  }).join('');
+
+  bodyEl.innerHTML = `
+    <div class="table-container">
+      <table class="table wl-matrix-table">
+        <thead>
+          <tr>
+            <th class="wl-matrix-user-col">Team Member</th>
+            ${weekDays.map(day => {
+              const d = new Date(day + 'T00:00:00');
+              const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+              return `<th class="wl-matrix-day-col ${isWeekend ? 'wl-weekend' : ''}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}">
+                <div class="wl-day-header">
+                  <span class="wl-day-name">${d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+                  <span class="wl-day-date">${d.getDate()}</span>
+                </div>
+              </th>`;
+            }).join('')}
+            <th class="wl-matrix-total-col">Total</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr class="wl-matrix-footer-row">
+            <td style="font-weight: var(--ds-font-weight-semibold);">Total</td>
+            ${footerCells}
+            <td class="wl-matrix-total-cell" style="font-weight: var(--ds-font-weight-bold);">${formatDuration(weekGrandTotal)}<div class="wl-cell-hours">${formatHoursDecimal(weekGrandTotal)}</div></td>
+          </tr>
+        </tfoot>
+      </table>
     </div>
   `;
 }
@@ -1400,11 +1466,11 @@ function injectWorklogStyles() {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: var(--ds-space-100) var(--ds-space-050);
+      padding: var(--ds-space-150) var(--ds-space-075);
       border-radius: var(--ds-radius-200);
       cursor: pointer;
       transition: all var(--ds-duration-fast) var(--ds-easing-standard);
-      min-height: 56px;
+      min-height: 68px;
       border: 2px solid transparent;
     }
     .wl-cal-cell:hover:not(.wl-cal-empty) {
@@ -1419,15 +1485,17 @@ function injectWorklogStyles() {
       border-color: var(--ds-border-brand);
     }
     .wl-cal-date {
-      font: var(--ds-font-body);
-      font-weight: var(--ds-font-weight-semibold);
-      font-size: 14px;
-    }
-    .wl-cal-hours {
-      font: var(--ds-font-body-small);
+      position: absolute;
+      top: 4px;
+      right: 6px;
       font-size: 11px;
       font-weight: var(--ds-font-weight-medium);
-      margin-top: 2px;
+      opacity: 0.8;
+    }
+    .wl-cal-hours {
+      font-size: 16px;
+      font-weight: var(--ds-font-weight-bold);
+      line-height: 1;
     }
     .wl-cal-over {
       background: var(--ds-background-success);
@@ -1481,12 +1549,12 @@ function injectWorklogStyles() {
       cursor: pointer;
       font: var(--ds-font-body-small);
       font-weight: var(--ds-font-weight-medium);
-      color: var(--ds-text-subtle);
+      color: var(--ds-text);
       transition: all var(--ds-duration-fast);
     }
     .wl-cal-view-btn.active {
       background: var(--ds-background-brand-bold);
-      color: white;
+      color: var(--ds-text-inverse);
     }
     .wl-cal-view-btn:not(.active):hover {
       background: var(--ds-background-neutral-hovered);

@@ -137,7 +137,7 @@
 
 .input {
   width: 100%;
-  padding: var(--ds-space-100) var(--ds-space-100);
+  padding: var(--ds-space-100) var(--ds-space-150);
   background-color: var(--ds-background-input);
   border: 2px solid var(--ds-border-input);
   border-radius: var(--ds-radius-100);
@@ -145,7 +145,13 @@
   color: var(--ds-text);
   transition: border-color var(--ds-duration-fast) var(--ds-easing-standard),
               background-color var(--ds-duration-fast) var(--ds-easing-standard);
-  height: 36px;
+  height: 40px;
+}
+
+.input-compact {
+  height: 32px;
+  padding: var(--ds-space-050) var(--ds-space-100);
+  font-size: 13px;
 }
 
 .input:hover {

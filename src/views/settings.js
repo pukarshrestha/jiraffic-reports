@@ -126,8 +126,8 @@ function renderHolidayList(holidays) {
         </thead>
         <tbody>
           ${sorted.map((h, i) => {
-            const d = new Date(h.date + 'T00:00:00');
-            return `
+    const d = new Date(h.date + 'T00:00:00');
+    return `
               <tr>
                 <td style="font-weight: var(--ds-font-weight-medium);">${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                 <td>${h.name || '—'}</td>
@@ -138,7 +138,7 @@ function renderHolidayList(holidays) {
                 </td>
               </tr>
             `;
-          }).join('')}
+  }).join('')}
         </tbody>
       </table>
     </div>
@@ -151,22 +151,17 @@ function renderGroupsList(groups) {
   }
   return groups.map((g, i) => `
     <div class="settings-group-card" data-group-idx="${i}">
-      <div class="settings-group-header">
-        <div style="display: flex; align-items: center; gap: var(--ds-space-100); flex: 1; min-width: 0;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; color: var(--ds-icon-subtle);"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-          <input class="input settings-group-name" data-group-idx="${i}" value="${g.name}" placeholder="Group name" style="flex: 1; height: 28px; font-size: 13px; font-weight: 600;" />
+      <div class="settings-group-inputs-row">
+        <div class="settings-group-field">
+          <label class="settings-field-label" for="group-name-${i}">Group Name</label>
+          <input class="input settings-group-name" id="group-name-${i}" data-group-idx="${i}" value="${g.name}" placeholder="Enter group name" style="height: 32px; font-size: 13px; font-weight: 600;" />
         </div>
-        <div style="display: flex; align-items: center; gap: var(--ds-space-050);">
-          <span style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest);">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</span>
-          <button class="btn btn-subtle btn-icon-only settings-delete-group" data-group-idx="${i}" title="Delete group" style="width: 28px; height: 28px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          </button>
+        <div class="settings-group-field" style="position: relative;" id="settings-group-user-search-${i}">
+          <label class="settings-field-label">Search Users</label>
+          <input class="input settings-group-user-search" data-group-idx="${i}" placeholder="Search and add users..." style="height: 32px; font-size: 12px; padding-left: var(--ds-space-300);" />
+          <svg style="position: absolute; left: 8px; bottom: 9px; color: var(--ds-icon-subtle);" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <div class="settings-group-dropdown" data-group-idx="${i}" style="display: none;"></div>
         </div>
-      </div>
-      <div style="position: relative; margin-top: var(--ds-space-100);" id="settings-group-user-search-${i}">
-        <input class="input settings-group-user-search" data-group-idx="${i}" placeholder="Search and add users..." style="height: 28px; font-size: 12px; padding-left: var(--ds-space-300);" />
-        <svg style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--ds-icon-subtle);" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <div class="settings-group-dropdown" data-group-idx="${i}" style="display: none;"></div>
       </div>
       <div class="settings-group-members" id="settings-group-members-${i}">
         ${g.users.map((u, ui) => `
@@ -176,6 +171,12 @@ function renderGroupsList(groups) {
             <button class="settings-chip-remove" data-group-idx="${i}" data-user-idx="${ui}" title="Remove">&times;</button>
           </span>
         `).join('')}
+      </div>
+      <div class="settings-group-footer">
+        <span style="font: var(--ds-font-body-small); color: var(--ds-text-subtlest);">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</span>
+        <button class="btn btn-subtle btn-icon-only settings-delete-group" data-group-idx="${i}" title="Delete group" style="width: 28px; height: 28px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </button>
       </div>
     </div>
   `).join('');
@@ -461,19 +462,42 @@ function injectSettingsStyles() {
       margin-bottom: var(--ds-space-150);
       background: var(--ds-surface-sunken);
     }
-    .settings-group-header {
+    .settings-group-inputs-row {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--ds-space-100);
-      margin-bottom: var(--ds-space-100);
+      gap: var(--ds-space-200);
+      align-items: flex-end;
+    }
+    .settings-group-field {
+      flex: 1;
+      min-width: 0;
+    }
+    .settings-field-label {
+      display: block;
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-semibold);
+      color: var(--ds-text-subtle);
+      margin-bottom: var(--ds-space-050);
     }
     .settings-group-members {
       display: flex;
       flex-wrap: wrap;
       gap: var(--ds-space-075);
       min-height: 24px;
-      margin-top: var(--ds-space-100);
+      margin-top: var(--ds-space-150);
+    }
+    .settings-group-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--ds-border);
+      margin-top: var(--ds-space-200);
+      padding-top: var(--ds-space-150);
+    }
+    @media (max-width: 768px) {
+      .settings-group-inputs-row {
+        flex-direction: column;
+        gap: var(--ds-space-150);
+      }
     }
     .settings-user-chip {
       display: inline-flex;
