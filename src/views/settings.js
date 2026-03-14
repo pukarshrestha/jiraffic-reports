@@ -2,7 +2,7 @@
  * Settings View — Work week, expected hours, holidays, and user groups
  */
 
-import { getCredentials } from '../services/auth.js';
+import { getCredentials, getSites, addSite, removeSite, validateCredentials } from '../services/auth.js';
 import { getSettings, saveSettings, getGroups, saveGroups, getHolidays, saveHolidays } from '../services/settings.js';
 import { searchUsers } from '../services/jira.js';
 import { showToast } from '../utils/toast.js';
@@ -31,6 +31,39 @@ export function renderSettings() {
     <div class="page-header" id="settings-header">
       <h1 class="page-title">Settings</h1>
       <p class="page-subtitle">Configure application preferences</p>
+    </div>
+
+    <!-- Connected Sites -->
+    <div class="card mb-300" id="settings-sites">
+      <div class="settings-section-title-row">
+        <h3 class="text-heading-small">Connected Sites</h3>
+        <button class="btn btn-primary settings-add-group-btn" id="toggle-add-site-btn">
+          + Add Site
+        </button>
+      </div>
+      <p class="settings-section-desc">Manage your connected Jira Cloud instances. Data is merged from all sites.</p>
+      <div id="sites-list">${renderSitesList()}</div>
+      <div id="add-site-form" class="d-none mt-200">
+        <div class="settings-add-site-grid">
+          <div class="form-group">
+            <label class="form-label" for="new-site-url">Jira URL</label>
+            <input class="input" type="url" id="new-site-url" placeholder="https://company.atlassian.net" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-site-email">Email</label>
+            <input class="input" type="email" id="new-site-email" placeholder="you@company.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="new-site-token">API Token</label>
+            <input class="input" type="password" id="new-site-token" placeholder="API token" />
+          </div>
+        </div>
+        <div class="flex-row-gap-100 mt-100">
+          <button class="btn btn-primary" id="save-site-btn">Connect Site</button>
+          <button class="btn btn-subtle" id="cancel-add-site-btn">Cancel</button>
+        </div>
+        <div id="add-site-error" class="login-error-box d-none mt-100"><p class="login-error-text" id="add-site-error-text"></p></div>
+      </div>
     </div>
 
     <!-- Work Week -->
@@ -89,6 +122,24 @@ export function renderSettings() {
 
   injectSettingsStyles();
   attachSettingsListeners(settings);
+}
+
+function renderSitesList() {
+  const sites = getSites();
+  if (sites.length === 0) {
+    return '<p class="settings-empty-state">No sites connected. Add a Jira site to get started.</p>';
+  }
+  return sites.map(s => `
+    <div class="login-site-card">
+      <div class="login-site-info">
+        <div class="login-site-name">${s.name}</div>
+        <div class="login-site-url">${s.jiraUrl}</div>
+      </div>
+      <button class="btn-subtle btn-icon-only login-site-remove settings-remove-site" data-site-id="${s.id}" title="Remove site">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('');
 }
 
 function renderWorkWeekToggles(workWeek) {
@@ -160,7 +211,7 @@ function renderGroupsList(groups) {
           <label class="settings-field-label">Search Users</label>
           <input class="input settings-group-user-search settings-group-search-input" data-group-idx="${i}" placeholder="Search and add users..." />
           <svg class="settings-group-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <div class="settings-group-dropdown d-none" data-group-idx="${i}"></div>
+          <div class="settings-group-dropdown" style="display: none;" data-group-idx="${i}"></div>
         </div>
       </div>
       <div class="settings-group-members" id="settings-group-members-${i}">
@@ -182,7 +233,81 @@ function renderGroupsList(groups) {
   `).join('');
 }
 
+function attachSiteRemoveListeners() {
+  document.querySelectorAll('.settings-remove-site').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const siteId = btn.dataset.siteId;
+      if (confirm('Remove this site?')) {
+        removeSite(siteId);
+        showToast('info', 'Site removed');
+        document.getElementById('sites-list').innerHTML = renderSitesList();
+        attachSiteRemoveListeners();
+      }
+    });
+  });
+}
+
 function attachSettingsListeners(settings) {
+  // Connected sites management
+  document.getElementById('toggle-add-site-btn')?.addEventListener('click', () => {
+    document.getElementById('add-site-form').classList.toggle('d-none');
+  });
+
+  document.getElementById('cancel-add-site-btn')?.addEventListener('click', () => {
+    document.getElementById('add-site-form').classList.add('d-none');
+  });
+
+  document.getElementById('save-site-btn')?.addEventListener('click', async () => {
+    const url = document.getElementById('new-site-url').value.trim();
+    const email = document.getElementById('new-site-email').value.trim();
+    const token = document.getElementById('new-site-token').value.trim();
+    const errorDiv = document.getElementById('add-site-error');
+    const errorText = document.getElementById('add-site-error-text');
+
+    if (!url || !email || !token) {
+      errorText.textContent = 'Please fill in all fields';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+
+    if (getSites().some(s => s.jiraUrl.replace(/\/+$/, '') === url.replace(/\/+$/, ''))) {
+      errorText.textContent = 'This site is already connected';
+      errorDiv.classList.remove('d-none');
+      return;
+    }
+
+    const saveBtn = document.getElementById('save-site-btn');
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Connecting...';
+    errorDiv.classList.add('d-none');
+
+    try {
+      const result = await validateCredentials(url, email, token);
+      if (result.success) {
+        const siteName = new URL(url).hostname.split('.')[0];
+        addSite(siteName, url, email, token);
+        showToast('success', 'Site connected', siteName);
+        document.getElementById('sites-list').innerHTML = renderSitesList();
+        document.getElementById('add-site-form').classList.add('d-none');
+        document.getElementById('new-site-url').value = '';
+        document.getElementById('new-site-email').value = '';
+        document.getElementById('new-site-token').value = '';
+        attachSiteRemoveListeners();
+      } else {
+        errorText.textContent = result.error || 'Authentication failed';
+        errorDiv.classList.remove('d-none');
+      }
+    } catch (err) {
+      errorText.textContent = err.message;
+      errorDiv.classList.remove('d-none');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Connect Site';
+    }
+  });
+
+  attachSiteRemoveListeners();
+
   // Work week toggles
   document.getElementById('workweek-toggles').addEventListener('click', (e) => {
     const btn = e.target.closest('.settings-day-toggle');

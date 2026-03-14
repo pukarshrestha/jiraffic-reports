@@ -269,6 +269,17 @@
   margin-bottom: var(--ds-space-050);
 }
 
+/* ── Settings Add Site ───────────────────────────── */
+.settings-add-site-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: var(--ds-space-150);
+}
+
+.settings-add-site-grid .form-group {
+  margin-bottom: 0;
+}
+
 /* ── Dashboard ────────────────────────────────────── */
 .skeleton-height-60 {
   height: 60px;

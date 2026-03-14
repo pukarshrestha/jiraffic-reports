@@ -2,21 +2,16 @@
  * App Shell — Sidebar + Top Bar
  */
 
-import { getSavedUser, logout, getSites } from '../services/auth.js';
+import { getSavedUser, logout } from '../services/auth.js';
 import { navigate, getCurrentRoute } from '../utils/router.js';
 import { toggleTheme, getTheme } from '../utils/theme.js';
 
 export function renderAppShell(container, activeView = 'dashboard') {
   const user = getSavedUser();
   const theme = getTheme();
-  const sites = getSites();
   const initials = user?.displayName
     ? user.displayName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : '?';
-
-  const siteCountHtml = sites.length > 1
-    ? `<div class="sidebar-site-count">${sites.length} sites connected</div>`
-    : '';
 
   container.innerHTML = `
     <div class="app-shell" id="app-shell">
@@ -32,8 +27,6 @@ export function renderAppShell(container, activeView = 'dashboard') {
             <span class="sidebar-logo-text">Jira-ffic Reports</span>
           </a>
         </div>
-
-        ${siteCountHtml}
 
         <nav class="sidebar-nav" id="sidebar-nav">
           <div class="sidebar-section" id="sidebar-section-main">

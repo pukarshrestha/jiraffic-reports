@@ -581,7 +581,6 @@ function renderAllUsersPanel(grandTotalSeconds, issueWorklogs, sortedDays, allDa
       <div class="stat-card">
         <div class="stat-card-label">Total Time Logged</div>
         <div class="stat-card-value">${formatDuration(grandTotalSeconds)}</div>
-        <div class="stat-card-change text-subtlest">${formatHoursDecimal(grandTotalSeconds)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -732,7 +731,6 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
       <div class="stat-card">
         <div class="stat-card-label">Time Logged</div>
         <div class="stat-card-value">${formatDuration(totalSeconds)}</div>
-        <div class="stat-card-change text-subtlest">${formatHoursDecimal(totalSeconds)}</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -1112,10 +1110,13 @@ function attachCalendarNavHandlers(tabId) {
 
   container.querySelector('.wl-cal-prev')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
-    // Week nav only
+    // Week nav only — clamp within selected date range
     if (state.view === 'week') {
       const ws = new Date(state.weekStart);
       ws.setDate(ws.getDate() - 7);
+      // Don't go before dateFrom
+      const rangeStart = new Date(dateFrom + 'T00:00:00');
+      if (ws < rangeStart) return;
       state.weekStart = ws;
       await loadCalendarData(tabId);
     }
@@ -1123,10 +1124,13 @@ function attachCalendarNavHandlers(tabId) {
 
   container.querySelector('.wl-cal-next')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
-    // Week nav only
+    // Week nav only — clamp within selected date range
     if (state.view === 'week') {
       const ws = new Date(state.weekStart);
       ws.setDate(ws.getDate() + 7);
+      // Don't go beyond dateTo
+      const rangeEnd = new Date(dateTo + 'T00:00:00');
+      if (ws > rangeEnd) return;
       state.weekStart = ws;
       await loadCalendarData(tabId);
     }
@@ -1709,6 +1713,9 @@ function injectWorklogStyles() {
       align-items: center;
       gap: var(--ds-space-050);
     }
+    .wl-cal-nav.d-none {
+      display: none;
+    }  
     .wl-cal-label {
       font: var(--ds-font-body);
       font-weight: var(--ds-font-weight-semibold);
