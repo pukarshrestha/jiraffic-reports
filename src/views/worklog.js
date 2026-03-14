@@ -1311,15 +1311,21 @@ async function exportToExcel() {
     import('file-saver'),
   ]);
 
-  const { allDaysInRange, perUserData } = lastReportData;
+  const { perUserData } = lastReportData;
   const expectedHoursPerDay = getExpectedHours();
   const userIds = Object.keys(perUserData);
   const userNames = userIds.map(id => perUserData[id].name);
   const colCount = 1 + userNames.length;
 
-  const wb = new ExcelJS.Workbook();
+  // Use current dateFrom/dateTo for the export range (matches the selected preset)
+  const allDaysInRange = [];
   const fromDate = new Date(dateFrom + 'T00:00:00');
   const toDate = new Date(dateTo + 'T00:00:00');
+  for (let d = new Date(fromDate); d <= toDate; d.setDate(d.getDate() + 1)) {
+    allDaysInRange.push(d.toISOString().split('T')[0]);
+  }
+
+  const wb = new ExcelJS.Workbook();
   const sheetLabel = fromDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   const ws = wb.addWorksheet(sheetLabel.substring(0, 31));
 
@@ -1332,10 +1338,12 @@ async function exportToExcel() {
   };
   const centerAlign = { horizontal: 'center', vertical: 'middle' };
 
-  // ── Row 1: Title ──
+  // ── Row 1: Title ══
+  const fmtFrom = new Date(dateFrom + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
+  const fmtTo = new Date(dateTo + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: '2-digit', year: 'numeric' });
   const titleLabel = userNames.length === 1
-    ? `Work Log Export - ${userNames[0]} - ${fromDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
-    : `Work Log Export - ${fromDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    ? `Work Log Export - ${userNames[0]} - ${fmtFrom} - ${fmtTo}`
+    : `Work Log Export - ${fmtFrom} - ${fmtTo}`;
   const titleRow = ws.addRow([titleLabel]);
   ws.mergeCells(1, 1, 1, colCount);
   titleRow.getCell(1).font = { bold: true, size: 13, color: { argb: 'FF1F4E79' } };
