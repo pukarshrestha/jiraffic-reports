@@ -321,6 +321,12 @@
   color: var(--ds-text);
 }
 
+.stat-card-secondary {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+  margin-top: var(--ds-space-025);
+}
+
 .stat-card-change {
   font: var(--ds-font-body-small);
   font-weight: var(--ds-font-weight-medium);

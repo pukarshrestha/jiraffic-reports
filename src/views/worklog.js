@@ -575,12 +575,16 @@ async function generateWorklogReport() {
 
 function renderAllUsersPanel(grandTotalSeconds, issueWorklogs, sortedDays, allDaysInRange, userDayMatrix, jiraUrl) {
   const totalEntries = issueWorklogs.reduce((sum, iw) => sum + iw.worklogs.length, 0);
+  const expectedHours = getExpectedHours();
+  const workdayCount = countWorkdaysInRange(dateFrom, dateTo);
+  const totalExpectedHours = expectedHours * workdayCount;
   return `
     <!-- Combined Stats -->
     <div class="stat-grid mb-300" id="all-users-stats">
       <div class="stat-card">
         <div class="stat-card-label">Total Time Logged</div>
         <div class="stat-card-value">${formatDuration(grandTotalSeconds)}</div>
+        <div class="stat-card-secondary">of ${totalExpectedHours}h expected</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -731,6 +735,7 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
       <div class="stat-card">
         <div class="stat-card-label">Time Logged</div>
         <div class="stat-card-value">${formatDuration(totalSeconds)}</div>
+        <div class="stat-card-secondary">of ${expectedHours * countWorkdaysInRange(dateFrom, dateTo)}h expected</div>
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -1282,6 +1287,17 @@ function applyDatePreset(preset) {
 
 function formatDate(date) {
   return date.toISOString().split('T')[0];
+}
+
+function countWorkdaysInRange(from, to) {
+  let count = 0;
+  const d = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+  while (d <= end) {
+    if (isWorkday(d.toISOString().split('T')[0])) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return count;
 }
 
 function formatDuration(seconds) {
