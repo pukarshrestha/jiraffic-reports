@@ -19,10 +19,14 @@ export function renderAppShell(container, activeView = 'dashboard') {
       <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
           <a href="#/dashboard" class="sidebar-logo">
-            <svg class="sidebar-logo-icon" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="8" fill="var(--ds-background-brand-bold)"/>
-              <path d="M10 21.5L16 10.5L22 21.5H10Z" fill="white" opacity="0.9"/>
-              <path d="M8 23H24V25H8V23Z" fill="white" opacity="0.7"/>
+            <svg class="sidebar-logo-icon" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <mask id="logo-mask" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="16" height="16">
+                <path d="M5.10645 0C5.03887 0.238644 5 0.489715 5 0.75V8.25C5 9.10495 5.3979 9.91118 6.07617 10.4316C6.75443 10.952 7.63615 11.1275 8.46191 10.9062L15.708 8.96484C15.8084 8.93794 15.9054 8.90417 16 8.86719V16H0V0H5.10645ZM10.7783 4.59082L10.5 4.66602V4.37598C10.5956 4.44395 10.6881 4.51612 10.7783 4.59082ZM16 2.16895C15.3896 1.34202 14.6579 0.610649 13.8311 0H16V2.16895Z" fill="currentColor"/>
+              </mask>
+              <g mask="url(#logo-mask)">
+                <path d="M1.75 8C1.75 11.4518 4.54822 14.25 8 14.25C11.4518 14.25 14.25 11.4518 14.25 8C14.25 4.54822 11.4518 1.75 8 1.75C4.54822 1.75 1.75 4.54822 1.75 8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              </g>
+              <path d="M7.75 8.25V0.75C11.2207 0.75 14.1407 3.10743 14.9962 6.30838L7.75 8.25Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
             </svg>
             <span class="sidebar-logo-text">Jira-ffic Reports</span>
           </a>

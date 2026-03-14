@@ -254,6 +254,13 @@
   width: 24px;
   height: 24px;
   flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: var(--ds-text-subtlest);
 }
 
