@@ -30,6 +30,9 @@ export function renderAppShell(container, activeView = 'dashboard') {
             </svg>
             <span class="sidebar-logo-text">Jira-ffic Reports</span>
           </a>
+          <button class="sidebar-hamburger" id="hamburger-btn" aria-label="Toggle sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
 
         <nav class="sidebar-nav" id="sidebar-nav">
@@ -77,33 +80,35 @@ export function renderAppShell(container, activeView = 'dashboard') {
               <div class="sidebar-user-name">${user?.displayName || 'User'}</div>
               <div class="sidebar-user-email">${user?.emailAddress || ''}</div>
             </div>
+            <button class="btn btn-subtle btn-icon-only sidebar-context-btn" id="sidebar-context-btn" aria-label="More options">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+          </div>
+          <div class="sidebar-context-menu d-none" id="sidebar-context-menu">
+            <button class="sidebar-context-item" id="theme-toggle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                ${theme === 'dark'
+                  ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+                  : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>'
+                }
+              </svg>
+              <span id="theme-toggle-label">${theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+            </button>
+            <button class="sidebar-context-item sidebar-context-item-danger" id="logout-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              <span>Log out</span>
+            </button>
           </div>
         </div>
       </aside>
 
+      <!-- Mobile hamburger overlay trigger -->
+      <button class="mobile-hamburger" id="mobile-hamburger-btn" aria-label="Open sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+
       <!-- Main Content -->
       <main class="main-content">
-        <header class="topbar" id="topbar">
-          <div class="topbar-left">
-            <button class="topbar-hamburger" id="hamburger-btn" aria-label="Toggle sidebar">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-            </button>
-            <nav class="topbar-breadcrumbs" id="breadcrumbs">
-              <a href="#/dashboard">Home</a>
-            </nav>
-          </div>
-          <div class="topbar-right">
-            <button class="theme-toggle ${theme === 'dark' ? 'dark' : ''}" id="theme-toggle" aria-label="Toggle dark mode">
-              <div class="theme-toggle-icons">
-                <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-                <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-              </div>
-            </button>
-            <button class="btn btn-subtle btn-icon-only" id="logout-btn" data-tooltip="Logout" aria-label="Logout">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            </button>
-          </div>
-        </header>
 
         <div class="page-content" id="page-content">
           <div class="loading-screen">
@@ -115,19 +120,41 @@ export function renderAppShell(container, activeView = 'dashboard') {
     </div>
   `;
 
-  // Event listeners
-  document.getElementById('theme-toggle').addEventListener('click', () => {
-    const newTheme = toggleTheme();
-    document.getElementById('theme-toggle').classList.toggle('dark', newTheme === 'dark');
+  // Event listeners — Context menu toggle
+  document.getElementById('sidebar-context-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('sidebar-context-menu').classList.toggle('d-none');
   });
 
+  // Theme toggle
+  document.getElementById('theme-toggle').addEventListener('click', () => {
+    const newTheme = toggleTheme();
+    const label = document.getElementById('theme-toggle-label');
+    if (label) label.textContent = newTheme === 'dark' ? 'Light mode' : 'Dark mode';
+    // Update icon
+    const svgParent = document.getElementById('theme-toggle').querySelector('svg');
+    if (svgParent) {
+      svgParent.innerHTML = newTheme === 'dark'
+        ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+        : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    }
+    document.getElementById('sidebar-context-menu').classList.add('d-none');
+  });
+
+  // Logout
   document.getElementById('logout-btn').addEventListener('click', () => {
     logout();
     navigate('/login');
   });
 
+  // Mobile hamburger — open sidebar
+  document.getElementById('mobile-hamburger-btn').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.add('open');
+  });
+
+  // Sidebar close button (X) — close sidebar on mobile
   document.getElementById('hamburger-btn').addEventListener('click', () => {
-    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebar').classList.remove('open');
   });
 
   // Navigation
@@ -139,11 +166,20 @@ export function renderAppShell(container, activeView = 'dashboard') {
     });
   });
 
-  // Close sidebar on overlay click (mobile)
+  // Close context menu and sidebar on outside click
   document.addEventListener('click', (e) => {
     const sidebar = document.getElementById('sidebar');
-    const hamburger = document.getElementById('hamburger-btn');
-    if (sidebar?.classList.contains('open') && !sidebar.contains(e.target) && !hamburger.contains(e.target)) {
+    const mobileHamburger = document.getElementById('mobile-hamburger-btn');
+    const contextMenu = document.getElementById('sidebar-context-menu');
+    const contextBtn = document.getElementById('sidebar-context-btn');
+
+    // Close context menu
+    if (contextMenu && !contextMenu.classList.contains('d-none') && !contextBtn?.contains(e.target) && !contextMenu.contains(e.target)) {
+      contextMenu.classList.add('d-none');
+    }
+
+    // Close sidebar on mobile
+    if (sidebar?.classList.contains('open') && !sidebar.contains(e.target) && !mobileHamburger?.contains(e.target)) {
       sidebar.classList.remove('open');
     }
   });

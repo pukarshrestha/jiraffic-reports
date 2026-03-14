@@ -211,7 +211,7 @@ function renderGroupsList(groups) {
           <label class="settings-field-label">Search Users</label>
           <input class="input settings-group-user-search settings-group-search-input" data-group-idx="${i}" placeholder="Search and add users..." />
           <svg class="settings-group-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <div class="settings-group-dropdown" style="display: none;" data-group-idx="${i}"></div>
+          <div class="settings-group-dropdown d-none" data-group-idx="${i}"></div>
         </div>
       </div>
       <div class="settings-group-members" id="settings-group-members-${i}">
@@ -521,7 +521,7 @@ function attachGroupListeners(settings) {
       const query = input.value.trim();
       const dropdown = document.querySelector(`.settings-group-dropdown[data-group-idx="${groupIdx}"]`);
       if (!query || query.length < 2) {
-        dropdown.style.display = 'none';
+        dropdown.classList.add('d-none');
         return;
       }
       groupSearchTimeout = setTimeout(async () => {
@@ -539,7 +539,7 @@ function attachGroupListeners(settings) {
               </div>
             `).join('');
           }
-          dropdown.style.display = '';
+          dropdown.classList.remove('d-none');
 
           // Click handler for dropdown items
           dropdown.querySelectorAll('.settings-dropdown-item').forEach(item => {
@@ -551,14 +551,14 @@ function attachGroupListeners(settings) {
               });
               saveSettings(settings);
               input.value = '';
-              dropdown.style.display = 'none';
+              dropdown.classList.add('d-none');
               document.getElementById('groups-list').innerHTML = renderGroupsList(settings.groups);
               attachGroupListeners(settings);
             });
           });
         } catch {
           dropdown.innerHTML = '<div class="settings-empty-state text-danger">Search failed</div>';
-          dropdown.style.display = '';
+          dropdown.classList.remove('d-none');
         }
       }, 300);
     });
@@ -567,7 +567,7 @@ function attachGroupListeners(settings) {
     input.addEventListener('blur', () => {
       setTimeout(() => {
         const dropdown = document.querySelector(`.settings-group-dropdown[data-group-idx="${groupIdx}"]`);
-        if (dropdown) dropdown.style.display = 'none';
+        if (dropdown) dropdown.classList.add('d-none');
       }, 200);
     });
   });

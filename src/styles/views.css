@@ -751,6 +751,10 @@
   gap: var(--ds-space-100);
 }
 
+.wl-day-task-key-col {
+  min-width: 0;
+}
+
 .wl-day-wl-entry {
   display: flex;
   justify-content: space-between;

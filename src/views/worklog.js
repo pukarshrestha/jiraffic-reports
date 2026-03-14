@@ -8,8 +8,7 @@ import { getSettings, getGroups, getExpectedHours, isWorkday, getHolidayOnDate }
 import { showToast } from '../utils/toast.js';
 import { navigate } from '../utils/router.js';
 import { renderAppShell, updateBreadcrumbs } from '../components/shell.js';
-import ExcelJS from 'exceljs';
-import { saveAs } from 'file-saver';
+
 
 let selectedUsers = [];
 let dateFrom = '';
@@ -557,6 +556,7 @@ async function generateWorklogReport() {
       }
     });
 
+    /* TASK_DETAILS_DISABLED — uncomment when re-enabling task search/filter
     // Task search/status filter handlers
     resultsDiv.addEventListener('input', (e) => {
       if (e.target.classList.contains('wl-task-search')) {
@@ -568,6 +568,7 @@ async function generateWorklogReport() {
         filterTasks(e.target.dataset.tab);
       }
     });
+    TASK_DETAILS_DISABLED */
 
     // Day modal close
     resultsDiv.addEventListener('click', (e) => {
@@ -575,9 +576,9 @@ async function generateWorklogReport() {
       const overlay = e.target.closest('.wl-day-modal-overlay');
       if (closeBtn) {
         const modal = document.getElementById(`day-modal-${closeBtn.dataset.tab}`);
-        if (modal) modal.style.display = 'none';
+        if (modal) modal.classList.remove('wl-modal-visible');
       } else if (overlay && !e.target.closest('.wl-day-modal')) {
-        overlay.style.display = 'none';
+        overlay.classList.remove('wl-modal-visible');
       }
     });
 
@@ -749,7 +750,7 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
   const expectedHours = getExpectedHours();
 
   // Collect all unique statuses for filter
-  const allStatuses = [...new Set(issues.map(iw => iw.issue.fields?.status?.name).filter(Boolean))];
+  // const allStatuses = [...new Set(issues.map(iw => iw.issue.fields?.status?.name).filter(Boolean))]; /* TASK_DETAILS_DISABLED */
 
   return `
     <!-- User Stats -->
@@ -804,7 +805,7 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
     </div>
 
     <!-- Day Detail Modal (hidden) -->
-    <div class="wl-day-modal-overlay" id="day-modal-${tabId}" style="display: none;">
+    <div class="wl-day-modal-overlay" id="day-modal-${tabId}">
       <div class="wl-day-modal">
         <div class="wl-day-modal-header">
           <h3 id="day-modal-title-${tabId}" class="wl-modal-title"></h3>
@@ -815,26 +816,12 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
         <div id="day-modal-content-${tabId}"></div>
       </div>
     </div>
-
-    <!-- Task Details -->
-    <div class="card" id="user-tasks-${tabId}">
-      <h3 class="text-heading-small mb-150">Task Details</h3>
-      <div class="wl-task-filters-row">
-        <input class="input input-compact wl-task-search wl-task-search-input" data-tab="${tabId}" type="text" placeholder="Search by task name or key..." />
-        <select class="input input-compact wl-task-status-filter wl-task-status-select" data-tab="${tabId}">
-          <option value="">All statuses</option>
-          ${allStatuses.map(s => `<option value="${s}">${s}</option>`).join('')}
-        </select>
-      </div>
-      <div class="wl-task-list" data-tab="${tabId}">
-        ${renderTaskAccordionItemsGrouped(issues, jiraUrl, tabId)}
-      </div>
-    </div>
+    ${''}${/* TASK_DETAILS_DISABLED — Task Details section removed for performance. Search TASK_DETAILS_DISABLED to re-enable. */ ''}
   `;
 }
 
+/* TASK_DETAILS_DISABLED — uncomment when re-enabling
 function renderTaskAccordionItemsGrouped(issues, jiraUrl, tabId) {
-  // Group issues by site
   const siteGroups = new Map();
   issues.sort((a, b) => b.totalSeconds - a.totalSeconds).forEach(iw => {
     const siteName = iw.issue._site?.name || 'Default';
@@ -886,6 +873,7 @@ function renderTaskAccordionItemsGrouped(issues, jiraUrl, tabId) {
     return header + items;
   }).join('');
 }
+TASK_DETAILS_DISABLED */
 
 /* ── Calendar Logic ──────────────────────────────── */
 
@@ -1197,7 +1185,7 @@ function showDayModal(tabId, dateStr) {
 
   // Find all tasks with worklogs on this day
   const { userData } = state;
-  if (!userData) { contentEl.innerHTML = '<p class="text-subtlest">No data</p>'; modal.style.display = ''; return; }
+  if (!userData) { contentEl.innerHTML = '<p class="text-subtlest">No data</p>'; modal.classList.add('wl-modal-visible'); return; }
 
   const jiraUrl = state.jiraUrl || '';
   const dayTasks = [];
@@ -1235,7 +1223,7 @@ function showDayModal(tabId, dateStr) {
         ${group.items.map(t => `
           <div class="wl-day-task-card">
             <div class="wl-day-task-header">
-              <div class="flex-row-gap-075" style="min-width: 0;">
+              <div class="flex-row-gap-075 wl-day-task-key-col">
                 <a href="${group.siteUrl}/browse/${t.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${t.issue.key}</a>
                 <span class="text-body-small text-truncate">${t.issue.fields?.summary || ''}</span>
               </div>
@@ -1246,9 +1234,10 @@ function showDayModal(tabId, dateStr) {
       `).join('')}
     `;
   }
-  modal.style.display = '';
+  modal.classList.add('wl-modal-visible');
 }
 
+/* TASK_DETAILS_DISABLED — uncomment when re-enabling
 function filterTasks(tabId) {
   const search = document.querySelector(`.wl-task-search[data-tab="${tabId}"]`)?.value?.toLowerCase() || '';
   const status = document.querySelector(`.wl-task-status-filter[data-tab="${tabId}"]`)?.value || '';
@@ -1264,6 +1253,7 @@ function filterTasks(tabId) {
     item.style.display = matchesSearch && matchesStatus ? '' : 'none';
   });
 }
+TASK_DETAILS_DISABLED */
 
 
 function generateMonthOptions() {
@@ -1314,6 +1304,12 @@ async function exportToExcel() {
     showToast('warning', 'Generate a report first');
     return;
   }
+
+  // Dynamic import — only load exceljs + file-saver when needed
+  const [{ default: ExcelJS }, { saveAs }] = await Promise.all([
+    import('exceljs'),
+    import('file-saver'),
+  ]);
 
   const { allDaysInRange, perUserData } = lastReportData;
   const expectedHoursPerDay = getExpectedHours();
@@ -2009,10 +2005,13 @@ function injectWorklogStyles() {
       bottom: 0;
       background: rgba(0, 0, 0, 0.4);
       z-index: 1000;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       padding: var(--ds-space-300);
+    }
+    .wl-day-modal-overlay.wl-modal-visible {
+      display: flex;
     }
     .wl-day-modal {
       background: var(--ds-surface-overlay);
