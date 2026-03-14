@@ -15,6 +15,8 @@ import { renderLogin } from './views/login.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderReport } from './views/report.js';
 import { renderWorkLog } from './views/worklog.js';
+import { renderCycleTime } from './views/cycletime.js';
+import { renderTimeInLane } from './views/timeinlane.js';
 import { renderSettings } from './views/settings.js';
 
 // Initialize theme
@@ -32,6 +34,14 @@ registerRoute('/report/jql', () => renderReport('jql'));
 registerRoute('/report/worklog', () => {
   if (!isLoggedIn()) return navigate('/login');
   renderWorkLog();
+});
+registerRoute('/report/cycletime', () => {
+  if (!isLoggedIn()) return navigate('/login');
+  renderCycleTime();
+});
+registerRoute('/report/timeinlane', () => {
+  if (!isLoggedIn()) return navigate('/login');
+  renderTimeInLane();
 });
 registerRoute('/settings', () => {
   if (!isLoggedIn()) return navigate('/login');

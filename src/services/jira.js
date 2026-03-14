@@ -325,3 +325,117 @@ export async function searchAllIssuesMultiSite(siteJqls, fields) {
   });
   return merged;
 }
+
+/**
+ * Get the changelog for a specific issue.
+ */
+export async function getIssueChangelog(issueKey, issueSite) {
+  const site = issueSite || getCredentials();
+  const data = await jiraFetchForSite(site, `/issue/${issueKey}?expand=changelog&fields=summary,status,assignee,project,issuetype,created,resolutiondate`);
+  return data;
+}
+
+/**
+ * Build per-site JQL for resolved issues by user within a date range.
+ * Used by Cycle Time report.
+ */
+export function buildUserCycleTimeJqlPerSite(selectedUsers, dateFrom, dateTo) {
+  const sites = getSites();
+  const siteJqls = [];
+
+  sites.forEach(site => {
+    const accountIds = [];
+    selectedUsers.forEach(u => {
+      if (u.siteAccounts) {
+        const siteAcct = u.siteAccounts.find(sa => sa.siteUrl === site.jiraUrl);
+        if (siteAcct) accountIds.push(siteAcct.accountId);
+      } else if (u.accountId) {
+        accountIds.push(u.accountId);
+      }
+    });
+
+    if (accountIds.length > 0) {
+      const idList = accountIds.map(id => `"${id}"`).join(', ');
+      const jql = `assignee in (${idList}) AND statusCategory = Done AND resolved >= "${dateFrom}" AND resolved <= "${dateTo}" ORDER BY resolved DESC`;
+      siteJqls.push({ site, jql });
+    }
+  });
+
+  return siteJqls;
+}
+
+/**
+ * Build per-site JQL for issues that had status changes during a date range.
+ * Used by Time in Lane report.
+ */
+export function buildUserLaneTimeJqlPerSite(selectedUsers, dateFrom, dateTo) {
+  const sites = getSites();
+  const siteJqls = [];
+
+  sites.forEach(site => {
+    const accountIds = [];
+    selectedUsers.forEach(u => {
+      if (u.siteAccounts) {
+        const siteAcct = u.siteAccounts.find(sa => sa.siteUrl === site.jiraUrl);
+        if (siteAcct) accountIds.push(siteAcct.accountId);
+      } else if (u.accountId) {
+        accountIds.push(u.accountId);
+      }
+    });
+
+    if (accountIds.length > 0) {
+      const idList = accountIds.map(id => `"${id}"`).join(', ');
+      const jql = `assignee in (${idList}) AND status changed DURING ("${dateFrom}", "${dateTo}") ORDER BY updated DESC`;
+      siteJqls.push({ site, jql });
+    }
+  });
+
+  return siteJqls;
+}
+
+/**
+ * Search issues across sites, then fetch changelog for each issue.
+ * Two-step approach: uses searchIssuesOnSite (proven) + individual changelog fetch.
+ */
+export async function searchAllIssuesWithChangelog(siteJqls, fields) {
+  // Step 1: Fetch issues using the same pattern as searchAllIssuesMultiSite
+  const results = await Promise.allSettled(
+    siteJqls.map(async ({ site, jql }) => {
+      const allIssues = [];
+      let nextPageToken = '';
+      let hasMore = true;
+
+      while (hasMore) {
+        const data = await searchIssuesOnSite(site, jql, { maxResults: 100, fields, nextPageToken });
+        allIssues.push(...(data.issues || []).map(iss => ({ ...iss, _site: site })));
+        nextPageToken = data.nextPageToken || '';
+        hasMore = !!nextPageToken;
+        if (allIssues.length > 500) break; // Limit for changelog fetching
+      }
+      return allIssues;
+    })
+  );
+
+  const merged = [];
+  results.forEach(r => {
+    if (r.status === 'fulfilled') merged.push(...r.value);
+  });
+
+  // Step 2: Fetch changelog for each issue (in batches of 10)
+  const batchSize = 10;
+  for (let i = 0; i < merged.length; i += batchSize) {
+    const batch = merged.slice(i, i + batchSize);
+    const changelogResults = await Promise.allSettled(
+      batch.map(async issue => {
+        try {
+          const data = await jiraFetchForSite(issue._site, `/issue/${issue.key}?expand=changelog&fields=summary`);
+          issue.changelog = data.changelog || { histories: [] };
+        } catch {
+          issue.changelog = { histories: [] };
+        }
+      })
+    );
+  }
+
+  return merged;
+}

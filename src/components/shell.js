@@ -47,6 +47,14 @@ export function renderAppShell(container, activeView = 'dashboard') {
               <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Work Log
             </button>
+            <button class="sidebar-item ${activeView === 'cycletime' ? 'active' : ''}" data-nav="report/cycletime">
+              <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Cycle Time
+            </button>
+            <button class="sidebar-item ${activeView === 'timeinlane' ? 'active' : ''}" data-nav="report/timeinlane">
+              <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+              Time in Lane
+            </button>
           </div>
 
           <div class="sidebar-section" id="sidebar-section-tools">
