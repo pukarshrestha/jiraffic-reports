@@ -148,7 +148,7 @@ export async function renderWorkLog() {
     clearTimeout(searchTimeout);
     const query = e.target.value.trim();
     if (query.length < 2) {
-      document.getElementById('user-dropdown').style.display = 'none';
+      document.getElementById('user-dropdown').classList.add('d-none');
       return;
     }
     searchTimeout = setTimeout(() => searchAndShowUsers(query), 300);
@@ -282,11 +282,15 @@ async function searchAndShowUsers(query) {
     // Click handler for individual user items
     dropdown.querySelectorAll('.user-dropdown-item:not(.user-dropdown-group)').forEach(item => {
       item.addEventListener('click', () => {
+        const accountId = item.dataset.accountId;
+        // Find the full user object from the fetched results to get siteAccounts
+        const fullUser = users.find(u => u.accountId === accountId);
         selectedUsers.push({
-          accountId: item.dataset.accountId,
+          accountId,
           displayName: item.dataset.name,
           emailAddress: item.dataset.email,
           avatarUrl: item.dataset.avatar || '',
+          siteAccounts: fullUser?.siteAccounts || [{ accountId, siteUrl: '', siteName: '' }],
         });
         refreshUserChips();
         document.getElementById('user-search').value = '';
@@ -295,7 +299,7 @@ async function searchAndShowUsers(query) {
     });
   } catch (err) {
     dropdown.innerHTML = `<div class="user-dropdown-empty">Error searching users</div>`;
-    dropdown.style.display = '';
+    dropdown.classList.remove('d-none');
   }
 }
 
@@ -749,7 +753,7 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
       <div class="wl-panel-header">
         <h3 class="text-heading-small m-0">Daily Breakdown</h3>
         <div class="wl-panel-controls">
-          <div class="wl-cal-nav">
+          <div class="wl-cal-nav d-none" id="cal-nav-${tabId}">
             <button class="btn btn-subtle btn-icon-only wl-cal-prev wl-nav-btn" data-tab="${tabId}" title="Previous">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
@@ -758,6 +762,7 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
           </div>
+          <span class="wl-cal-label-month text-subtle" id="cal-label-month-${tabId}"></span>
           <div class="wl-cal-view-toggle">
             <button class="wl-cal-view-btn active" data-view="month" data-tab="${tabId}">Month</button>
             <button class="wl-cal-view-btn" data-view="week" data-tab="${tabId}">Week</button>
@@ -797,45 +802,63 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
         </select>
       </div>
       <div class="wl-task-list" data-tab="${tabId}">
-        ${renderTaskAccordionItems(issues, jiraUrl, tabId)}
+        ${renderTaskAccordionItemsGrouped(issues, jiraUrl, tabId)}
       </div>
     </div>
   `;
 }
 
-function renderTaskAccordionItems(issues, jiraUrl, tabId) {
-  return issues.sort((a, b) => b.totalSeconds - a.totalSeconds).map((iw, idx) => {
-    const bodyId = `wl-body-${tabId}-${idx}`;
-    return `
-      <div class="wl-accordion-item" data-task-key="${iw.issue.key}" data-task-summary="${(iw.issue.fields?.summary || '').toLowerCase()}" data-task-status="${iw.issue.fields?.status?.name || ''}">
-        <button class="wl-accordion-header" data-idx="${tabId}-${idx}" aria-expanded="false">
-          <div class="wl-accordion-left">
-            <svg class="wl-accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            <a href="${jiraUrl}/browse/${iw.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${iw.issue.key}</a>
-            <span class="wl-issue-summary">${iw.issue.fields?.summary || ''}</span>
+function renderTaskAccordionItemsGrouped(issues, jiraUrl, tabId) {
+  // Group issues by site
+  const siteGroups = new Map();
+  issues.sort((a, b) => b.totalSeconds - a.totalSeconds).forEach(iw => {
+    const siteName = iw.issue._site?.name || 'Default';
+    const siteUrl = iw.issue._site?.jiraUrl || jiraUrl;
+    const key = siteUrl;
+    if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
+    siteGroups.get(key).items.push(iw);
+  });
+
+  const multiSite = siteGroups.size > 1;
+  let globalIdx = 0;
+
+  return Array.from(siteGroups.values()).map(group => {
+    const header = multiSite ? `<div class="wl-site-group-title">${group.siteName}</div>` : '';
+    const items = group.items.map(iw => {
+      const idx = globalIdx++;
+      const bodyId = `wl-body-${tabId}-${idx}`;
+      return `
+        <div class="wl-accordion-item" data-task-key="${iw.issue.key}" data-task-summary="${(iw.issue.fields?.summary || '').toLowerCase()}" data-task-status="${iw.issue.fields?.status?.name || ''}">
+          <button class="wl-accordion-header" data-idx="${tabId}-${idx}" aria-expanded="false">
+            <div class="wl-accordion-left">
+              <svg class="wl-accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <a href="${group.siteUrl}/browse/${iw.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${iw.issue.key}</a>
+              <span class="wl-issue-summary">${iw.issue.fields?.summary || ''}</span>
+            </div>
+            <div class="wl-accordion-right">
+              <span class="lozenge ${getStatusLozengeClass(iw.issue.fields?.status?.statusCategory?.key)} flex-shrink-0">${iw.issue.fields?.status?.name || ''}</span>
+              <span class="lozenge lozenge-default flex-shrink-0">${iw.issue.fields?.project?.name || iw.issue.fields?.project?.key || ''}</span>
+              <span class="wl-time-badge">${formatDuration(iw.totalSeconds)}</span>
+            </div>
+          </button>
+          <div class="wl-accordion-body d-none" id="${bodyId}">
+            <table class="table wl-table-no-margin">
+              <thead><tr><th>Date</th><th>Time Spent</th><th>Comment</th></tr></thead>
+              <tbody>
+                ${iw.worklogs.sort((a, b) => new Date(a.started) - new Date(b.started)).map(wl => `
+                  <tr>
+                    <td class="wl-worklog-date-cell">${wl.started ? new Date(wl.started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
+                    <td class="text-medium">${wl.timeSpent || formatDuration(wl.timeSpentSeconds || 0)}</td>
+                    <td class="wl-worklog-comment-cell">${extractComment(wl.comment) || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
           </div>
-          <div class="wl-accordion-right">
-            <span class="lozenge ${getStatusLozengeClass(iw.issue.fields?.status?.statusCategory?.key)} flex-shrink-0">${iw.issue.fields?.status?.name || ''}</span>
-            <span class="lozenge lozenge-default flex-shrink-0">${iw.issue.fields?.project?.name || iw.issue.fields?.project?.key || ''}</span>
-            <span class="wl-time-badge">${formatDuration(iw.totalSeconds)}</span>
-          </div>
-        </button>
-        <div class="wl-accordion-body d-none" id="${bodyId}">
-          <table class="table wl-table-no-margin">
-            <thead><tr><th>Date</th><th>Time Spent</th><th>Comment</th></tr></thead>
-            <tbody>
-              ${iw.worklogs.sort((a, b) => new Date(a.started) - new Date(b.started)).map(wl => `
-                <tr>
-                  <td class="wl-worklog-date-cell">${wl.started ? new Date(wl.started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
-                  <td class="text-medium">${wl.timeSpent || formatDuration(wl.timeSpentSeconds || 0)}</td>
-                  <td class="wl-worklog-comment-cell">${extractComment(wl.comment) || '—'}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
         </div>
-      </div>
-    `;
+      `;
+    }).join('');
+    return header + items;
   }).join('');
 }
 
@@ -845,8 +868,9 @@ function renderTaskAccordionItems(issues, jiraUrl, tabId) {
 const calendarStates = {};
 
 function initCalendars(perUserData, issueWorklogs, jiraUrl) {
-  // Set initial calendar month/year from the selected dateFrom
-  const rangeStart = new Date(dateFrom + 'T00:00:00');
+  // Set initial calendar month/year from dateTo (end of selected range)
+  // This ensures "This Month: March" shows March, not February
+  const rangeEnd = new Date(dateTo + 'T00:00:00');
 
   Object.keys(perUserData).forEach(tabId => {
     const gridEl = document.getElementById(`cal-grid-${tabId}`);
@@ -857,9 +881,9 @@ function initCalendars(perUserData, issueWorklogs, jiraUrl) {
 
     calendarStates[tabId] = {
       view: 'month',
-      year: rangeStart.getFullYear(),
-      month: rangeStart.getMonth(),
-      weekStart: getWeekStart(rangeStart),
+      year: rangeEnd.getFullYear(),
+      month: rangeEnd.getMonth(),
+      weekStart: getWeekStart(new Date(dateFrom + 'T00:00:00')),
       days,
       expected,
       userData: perUserData[tabId],
@@ -886,16 +910,22 @@ function renderCalendarGrid(tabId) {
 
   const gridEl = document.getElementById(`cal-grid-${tabId}`);
   const labelEl = document.getElementById(`cal-label-${tabId}`);
-  if (!gridEl || !labelEl) return;
+  const labelMonthEl = document.getElementById(`cal-label-month-${tabId}`);
+  const navEl = document.getElementById(`cal-nav-${tabId}`);
+  if (!gridEl) return;
 
   const { view, year, month, weekStart, days, expected } = state;
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Toggle nav visibility: show only in week view
+  if (navEl) navEl.classList.toggle('d-none', view === 'month');
+  if (labelMonthEl) labelMonthEl.classList.toggle('d-none', view === 'week');
 
   let cells = '';
   let datesToRender = [];
 
   if (view === 'month') {
-    labelEl.textContent = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    if (labelMonthEl) labelMonthEl.textContent = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     // Fill in leading empty cells for the first week
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -915,7 +945,7 @@ function renderCalendarGrid(tabId) {
     const ws = new Date(weekStart);
     const we = new Date(ws);
     we.setDate(ws.getDate() + 6);
-    labelEl.textContent = `${ws.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${we.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    if (labelEl) labelEl.textContent = `${ws.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} — ${we.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
     cells += dayNames.map(d => `<div class="wl-cal-header-cell">${d}</div>`).join('');
     for (let i = 0; i < 7; i++) {
       const dd = new Date(ws);
@@ -1078,30 +1108,28 @@ function attachCalendarNavHandlers(tabId) {
   const container = document.getElementById(`user-daily-${tabId}`);
   if (!container) return;
 
+  // Nav buttons removed — calendar is locked to selected date range
+
   container.querySelector('.wl-cal-prev')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
-    if (state.view === 'month') {
-      state.month--;
-      if (state.month < 0) { state.month = 11; state.year--; }
-    } else {
+    // Week nav only
+    if (state.view === 'week') {
       const ws = new Date(state.weekStart);
       ws.setDate(ws.getDate() - 7);
       state.weekStart = ws;
+      await loadCalendarData(tabId);
     }
-    await loadCalendarData(tabId);
   });
 
   container.querySelector('.wl-cal-next')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
-    if (state.view === 'month') {
-      state.month++;
-      if (state.month > 11) { state.month = 0; state.year++; }
-    } else {
+    // Week nav only
+    if (state.view === 'week') {
       const ws = new Date(state.weekStart);
       ws.setDate(ws.getDate() + 7);
       state.weekStart = ws;
+      await loadCalendarData(tabId);
     }
-    await loadCalendarData(tabId);
   });
 
   container.querySelectorAll('.wl-cal-view-btn').forEach(btn => {
@@ -1110,8 +1138,14 @@ function attachCalendarNavHandlers(tabId) {
       state.view = btn.dataset.view;
       container.querySelectorAll('.wl-cal-view-btn').forEach(b => b.classList.toggle('active', b.dataset.view === state.view));
       if (state.view === 'week') {
+        // Set to the first week within the selected month
         state.weekStart = getWeekStart(new Date(state.year, state.month, 1));
       }
+      // Toggle nav visibility
+      const navEl = document.getElementById(`cal-nav-${tabId}`);
+      const labelMonthEl = document.getElementById(`cal-label-month-${tabId}`);
+      if (navEl) navEl.classList.toggle('d-none', state.view === 'month');
+      if (labelMonthEl) labelMonthEl.classList.toggle('d-none', state.view === 'week');
       renderCalendarGrid(tabId);
     });
   });
@@ -1146,20 +1180,36 @@ function showDayModal(tabId, dateStr) {
     contentEl.innerHTML = '<p class="settings-empty-state">No work logged on this day.</p>';
   } else {
     const totalDaySec = dayTasks.reduce((s, t) => s + t.totalSeconds, 0);
+
+    // Group by site
+    const siteGroups = new Map();
+    dayTasks.forEach(t => {
+      const siteName = t.issue._site?.name || 'Default';
+      const siteUrl = t.issue._site?.jiraUrl || jiraUrl;
+      const key = siteUrl;
+      if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
+      siteGroups.get(key).items.push(t);
+    });
+
+    const multiSite = siteGroups.size > 1;
+
     contentEl.innerHTML = `
       <div class="jql-results-summary">
         Total: <strong>${formatDuration(totalDaySec)}</strong> across ${dayTasks.length} task${dayTasks.length !== 1 ? 's' : ''}
       </div>
-      ${dayTasks.map(t => `
-        <div class="wl-day-task-card">
-          <div class="wl-day-task-header">
-            <div class="flex-row-gap-075" style="min-width: 0;">
-              <a href="${jiraUrl}/browse/${t.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${t.issue.key}</a>
-              <span class="text-body-small text-truncate">${t.issue.fields?.summary || ''}</span>
+      ${Array.from(siteGroups.values()).map(group => `
+        ${multiSite ? `<div class="wl-site-group-title">${group.siteName}</div>` : ''}
+        ${group.items.map(t => `
+          <div class="wl-day-task-card">
+            <div class="wl-day-task-header">
+              <div class="flex-row-gap-075" style="min-width: 0;">
+                <a href="${group.siteUrl}/browse/${t.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${t.issue.key}</a>
+                <span class="text-body-small text-truncate">${t.issue.fields?.summary || ''}</span>
+              </div>
+              <span class="wl-time-badge">${formatDuration(t.totalSeconds)}</span>
             </div>
-            <span class="wl-time-badge">${formatDuration(t.totalSeconds)}</span>
           </div>
-        </div>
+        `).join('')}
       `).join('')}
     `;
   }

@@ -694,6 +694,23 @@
   background: var(--ds-background-neutral);
 }
 
+/* ── Site Group Title ─────────────────────────────── */
+.wl-site-group-title {
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+  color: var(--ds-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--ds-space-100) 0 var(--ds-space-050);
+  margin-top: var(--ds-space-150);
+  margin-bottom: var(--ds-space-100);
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.wl-site-group-title:first-child {
+  margin-top: 0;
+}
+
 /* ── Worklog Day Modal Cards ───────────────────────── */
 .wl-day-task-card {
   border: 1px solid var(--ds-border);
