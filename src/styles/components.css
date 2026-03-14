@@ -71,6 +71,19 @@
   background-color: var(--ds-background-neutral-subtle-pressed);
 }
 
+/* Default outline — ADS default button appearance */
+.btn-default-outline {
+  background-color: transparent;
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text-subtle);
+}
+.btn-default-outline:hover {
+  background-color: var(--ds-background-neutral-subtle-hovered);
+}
+.btn-default-outline:active {
+  background-color: var(--ds-background-neutral-subtle-pressed);
+}
+
 /* Danger */
 .btn-danger {
   background-color: var(--ds-background-danger-bold);

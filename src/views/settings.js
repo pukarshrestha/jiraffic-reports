@@ -8,7 +8,7 @@ import { searchUsers } from '../services/jira.js';
 import { showToast } from '../utils/toast.js';
 import { navigate } from '../utils/router.js';
 import { renderAppShell, updateBreadcrumbs } from '../components/shell.js';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 let groupSearchTimeout = null;
 
@@ -378,12 +378,30 @@ function handleHolidayUpload(event) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+      const workbook = new ExcelJS.Workbook();
+
+      // Detect file type and read accordingly
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'csv') {
+        await workbook.csv.load(data.buffer);
+      } else {
+        await workbook.xlsx.load(data.buffer);
+      }
+
+      const firstSheet = workbook.worksheets[0];
+      if (!firstSheet || firstSheet.rowCount < 2) {
+        showToast('error', 'Empty file', 'The file needs at least a header row and one data row.');
+        return;
+      }
+
+      // Read all rows into array-of-arrays
+      const rows = [];
+      firstSheet.eachRow((row) => {
+        rows.push(row.values.slice(1)); // ExcelJS row.values is 1-indexed
+      });
 
       if (rows.length < 2) {
         showToast('error', 'Empty file', 'The file needs at least a header row and one data row.');
@@ -407,10 +425,14 @@ function handleHolidayUpload(event) {
         let dateStr = '';
         const rawDate = row[dateCol];
 
-        if (typeof rawDate === 'number') {
-          // Excel serial date number
-          const d = XLSX.SSF.parse_date_code(rawDate);
-          dateStr = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+        if (rawDate instanceof Date) {
+          // ExcelJS returns Date objects for date cells
+          dateStr = `${rawDate.getFullYear()}-${String(rawDate.getMonth() + 1).padStart(2, '0')}-${String(rawDate.getDate()).padStart(2, '0')}`;
+        } else if (typeof rawDate === 'number') {
+          // Excel serial date number fallback
+          const epoch = new Date(1899, 11, 30);
+          const d = new Date(epoch.getTime() + rawDate * 86400000);
+          dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         } else {
           // Try parsing as string
           const parsed = new Date(rawDate);

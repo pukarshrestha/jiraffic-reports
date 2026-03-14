@@ -8,11 +8,14 @@ import { getSettings, getGroups, getExpectedHours, isWorkday, getHolidayOnDate }
 import { showToast } from '../utils/toast.js';
 import { navigate } from '../utils/router.js';
 import { renderAppShell, updateBreadcrumbs } from '../components/shell.js';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 let selectedUsers = [];
 let dateFrom = '';
 let dateTo = '';
 let searchTimeout = null;
+let lastReportData = null;
 
 // Timesheet weekly navigation state
 let timesheetState = { allDays: [], userMatrix: {}, weekIndex: 0, jiraUrl: '' };
@@ -88,12 +91,19 @@ export async function renderWorkLog() {
           <input class="input" type="date" id="date-to" value="${dateTo}" />
         </div>
 
-        <button class="btn btn-primary wl-generate-btn" id="generate-btn">
-          Generate Report
-        </button>
+
       </div>
       <div id="user-chips" class="wl-user-chips">
         ${renderUserChips()}
+      </div>
+      <div class="wl-actions-row">
+        <button class="btn btn-primary" id="generate-btn-bottom">
+          Generate Report
+        </button>
+        <button class="btn btn-default-outline d-none" id="export-excel-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export Excel
+        </button>
       </div>
     </div>
 
@@ -140,7 +150,7 @@ export async function renderWorkLog() {
     generateWorklogReport();
   });
 
-  document.getElementById('generate-btn').addEventListener('click', generateWorklogReport);
+  document.getElementById('generate-btn-bottom').addEventListener('click', generateWorklogReport);
 
   // User search
   const searchInput = document.getElementById('user-search');
@@ -314,6 +324,10 @@ async function generateWorklogReport() {
     showToast('warning', 'Please select a date range');
     return;
   }
+
+  // Hide export button during loading
+  const exportBtn = document.getElementById('export-excel-btn');
+  if (exportBtn) exportBtn.classList.add('d-none');
 
   resultsDiv.innerHTML = `
     <div class="loading-screen">
@@ -522,6 +536,14 @@ async function generateWorklogReport() {
     // Initialize timesheet weekly navigation
     timesheetState = { allDays: allDaysInRange, userMatrix: userDayMatrix, weekIndex: 0, jiraUrl };
     renderTimesheetWeek();
+
+    // Store report data for export
+    lastReportData = { allDaysInRange, userDayMatrix, perUserData };
+    const exportBtn = document.getElementById('export-excel-btn');
+    if (exportBtn) {
+      exportBtn.classList.remove('d-none');
+      exportBtn.onclick = exportToExcel;
+    }
     document.getElementById('ts-week-prev')?.addEventListener('click', () => {
       if (timesheetState.weekIndex > 0) {
         timesheetState.weekIndex--;
@@ -968,6 +990,8 @@ function renderCalendarGrid(tabId) {
     let colorClass = '';
     if (holiday || !workday) {
       colorClass = 'wl-cal-holiday';
+    } else if (hours > 9) {
+      colorClass = 'wl-cal-overlog';
     } else if (hours >= expected) {
       colorClass = 'wl-cal-over';
     } else if (hours > 0) {
@@ -1281,6 +1305,196 @@ function applyDatePreset(preset) {
     dateFrom = formatDate(new Date(year, month - 1, 1));
     dateTo = formatDate(new Date(year, month, 0));
   }
+}
+
+/* ── Excel Export ─────────────────────────────────── */
+
+async function exportToExcel() {
+  if (!lastReportData) {
+    showToast('warning', 'Generate a report first');
+    return;
+  }
+
+  const { allDaysInRange, perUserData } = lastReportData;
+  const expectedHoursPerDay = getExpectedHours();
+  const userIds = Object.keys(perUserData);
+  const userNames = userIds.map(id => perUserData[id].name);
+  const colCount = 1 + userNames.length;
+
+  const wb = new ExcelJS.Workbook();
+  const fromDate = new Date(dateFrom + 'T00:00:00');
+  const toDate = new Date(dateTo + 'T00:00:00');
+  const sheetLabel = fromDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  const ws = wb.addWorksheet(sheetLabel.substring(0, 31));
+
+  // Shared styles
+  const border = {
+    top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+    bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+    left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+    right: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+  };
+  const centerAlign = { horizontal: 'center', vertical: 'middle' };
+
+  // ── Row 1: Title ──
+  const titleLabel = userNames.length === 1
+    ? `Work Log Export - ${userNames[0]} - ${fromDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+    : `Work Log Export - ${fromDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+  const titleRow = ws.addRow([titleLabel]);
+  ws.mergeCells(1, 1, 1, colCount);
+  titleRow.getCell(1).font = { bold: true, size: 13, color: { argb: 'FF1F4E79' } };
+  titleRow.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
+  titleRow.height = 28;
+
+  // ── Row 2: Header ──
+  const headerRow = ws.addRow(['Date', ...userNames]);
+  headerRow.eachCell(cell => {
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F4E79' } };
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+    cell.alignment = centerAlign;
+    cell.border = border;
+  });
+  headerRow.height = 22;
+
+  // ── Data rows ──
+  allDaysInRange.forEach(dateStr => {
+    const d = new Date(dateStr + 'T00:00:00');
+    const dayLabel = `${dateStr} (${d.toLocaleDateString('en-US', { weekday: 'short' })})`;
+    const workday = isWorkday(dateStr);
+    const holiday = getHolidayOnDate(dateStr);
+
+    const vals = [dayLabel];
+    userIds.forEach(userId => {
+      const seconds = perUserData[userId]?.days?.[dateStr] || 0;
+      const hours = Math.round((seconds / 3600) * 100) / 100;
+      if (holiday || !workday) {
+        vals.push('—');
+      } else {
+        vals.push(hours > 0 ? `${hours}h` : '0h');
+      }
+    });
+
+    const row = ws.addRow(vals);
+    row.getCell(1).font = { size: 10 };
+    row.getCell(1).border = border;
+
+    userIds.forEach((userId, idx) => {
+      const cell = row.getCell(idx + 2);
+      cell.alignment = centerAlign;
+      cell.border = border;
+      cell.font = { size: 10 };
+
+      const seconds = perUserData[userId]?.days?.[dateStr] || 0;
+      const hours = seconds / 3600;
+
+      if (holiday || !workday) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+        cell.font = { size: 10, color: { argb: 'FF808080' } };
+      } else if (hours > 9) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFBD4B4' } };
+        cell.font = { size: 10, color: { argb: 'FFBF4F00' } };
+      } else if (hours >= expectedHoursPerDay) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+        cell.font = { size: 10, color: { argb: 'FF006100' } };
+      } else if (hours > 0) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFEB9C' } };
+        cell.font = { size: 10, color: { argb: 'FF9C5700' } };
+      } else {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
+        cell.font = { size: 10, color: { argb: 'FF9C0006' } };
+      }
+    });
+  });
+
+  // ── Summary rows ──
+  const summaryFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } };
+  const summaryFont = { bold: true, size: 11 };
+  const workdayCount = countWorkdaysInRange(dateFrom, dateTo);
+  const totalExpectedHours = expectedHoursPerDay * workdayCount;
+
+  // Total row
+  const totalVals = ['Total'];
+  userIds.forEach(userId => {
+    const totalSec = perUserData[userId]?.totalSeconds || 0;
+    totalVals.push(`${(Math.round((totalSec / 3600) * 100) / 100)}h`);
+  });
+  const totalRow = ws.addRow(totalVals);
+  totalRow.eachCell(cell => {
+    cell.fill = summaryFill;
+    cell.font = summaryFont;
+    cell.alignment = centerAlign;
+    cell.border = border;
+  });
+
+  // Expected row
+  const expectedVals = ['Expected'];
+  userIds.forEach(() => expectedVals.push(`${totalExpectedHours}h`));
+  const expectedRow = ws.addRow(expectedVals);
+  expectedRow.eachCell(cell => {
+    cell.fill = summaryFill;
+    cell.font = summaryFont;
+    cell.alignment = centerAlign;
+    cell.border = border;
+  });
+
+  // Diff % row
+  const diffVals = ['Diff %'];
+  userIds.forEach(userId => {
+    const totalSec = perUserData[userId]?.totalSeconds || 0;
+    const totalHours = totalSec / 3600;
+    const diffPct = totalExpectedHours > 0 ? Math.round(((totalHours - totalExpectedHours) / totalExpectedHours) * 100) : 0;
+    diffVals.push(`${diffPct >= 0 ? '+' : ''}${diffPct}%`);
+  });
+  const diffRow = ws.addRow(diffVals);
+  diffRow.eachCell((cell, colNum) => {
+    cell.alignment = centerAlign;
+    cell.border = border;
+    cell.font = { bold: true, size: 11 };
+    if (colNum > 1) {
+      const userId = userIds[colNum - 2];
+      const totalSec = perUserData[userId]?.totalSeconds || 0;
+      const totalHours = totalSec / 3600;
+      const diffPct = totalExpectedHours > 0 ? ((totalHours - totalExpectedHours) / totalExpectedHours) * 100 : 0;
+      if (diffPct >= 0) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFC6EFCE' } };
+        cell.font = { bold: true, size: 11, color: { argb: 'FF006100' } };
+      } else {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } };
+        cell.font = { bold: true, size: 11, color: { argb: 'FF9C0006' } };
+      }
+    } else {
+      cell.fill = summaryFill;
+    }
+  });
+
+  // ── Empty row + Legend ──
+  ws.addRow([]);
+  const legendItems = [
+    ['Green', 'Met expected hours (≥' + expectedHoursPerDay + 'h)', 'FFC6EFCE', 'FF006100'],
+    ['Yellow', 'Underlogged (<' + expectedHoursPerDay + 'h but >0)', 'FFFFEB9C', 'FF9C5700'],
+    ['Orange', 'Overlogged (>9h)', 'FFFBD4B4', 'FFBF4F00'],
+    ['Red', 'No log (0h)', 'FFFFC7CE', 'FF9C0006'],
+    ['Gray', 'Weekend / Holiday', 'FFD9D9D9', 'FF808080'],
+  ];
+  legendItems.forEach(([label, desc, bg, fg]) => {
+    const row = ws.addRow([label, desc]);
+    const colorCell = row.getCell(1);
+    colorCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } };
+    colorCell.font = { bold: true, size: 9, color: { argb: fg } };
+    colorCell.alignment = centerAlign;
+    row.getCell(2).font = { size: 9, color: { argb: 'FF666666' } };
+  });
+
+  // Column widths
+  ws.getColumn(1).width = 24;
+  for (let i = 2; i <= colCount; i++) ws.getColumn(i).width = 16;
+
+  // Generate and download
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const fileName = `WorkLog_${dateFrom}_to_${dateTo}.xlsx`;
+  saveAs(blob, fileName);
+  showToast('success', `Exported to ${fileName}`);
 }
 
 /* ── Helpers ──────────────────────────────────────── */
@@ -1695,6 +1909,10 @@ function injectWorklogStyles() {
       font-size: 16px;
       font-weight: var(--ds-font-weight-bold);
       line-height: 1;
+    }
+    .wl-cal-overlog {
+      background: color-mix(in srgb, #E56910 18%, transparent);
+      color: #E56910;
     }
     .wl-cal-over {
       background: var(--ds-background-success);

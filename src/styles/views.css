@@ -415,6 +415,13 @@
   margin-top: var(--ds-space-200);
 }
 
+.wl-actions-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-100);
+  margin-top: var(--ds-space-200);
+}
+
 .wl-search-icon {
   position: absolute;
   left: 10px;
