@@ -1,8 +1,8 @@
 /**
  * Jira API Client — Wraps common Jira REST API v3 calls
- * All requests go through the Express proxy server.
+ * All requests go through the Express proxy server using OAuth Bearer tokens.
  *
- * Multi-site support: most functions query ALL saved sites in parallel
+ * Multi-site support: most functions query ALL selected sites in parallel
  * and merge results. Users are deduplicated by email address.
  */
 
@@ -14,9 +14,7 @@ function getHeaders(site) {
   if (!site) throw new Error('Not authenticated');
   return {
     'Content-Type': 'application/json',
-    'X-Jira-Url': site.jiraUrl,
-    'X-Jira-Email': site.email,
-    'X-Jira-Token': site.apiToken,
+    'X-Cloud-Id': site.cloudId,
   };
 }
 
@@ -28,6 +26,7 @@ async function jiraFetchForSite(site, endpoint, options = {}) {
   const resp = await fetch(`/api/jira${endpoint}`, {
     ...options,
     headers: { ...headers, ...options.headers },
+    credentials: 'include',
   });
 
   if (!resp.ok) {
@@ -147,8 +146,8 @@ export async function searchAllIssues(jql, fields) {
   results.forEach(r => {
     if (r.status === 'fulfilled') {
       r.value.forEach(issue => {
-        // Deduplicate issues by key + site URL
-        const key = `${issue._site.jiraUrl}::${issue.key}`;
+        // Deduplicate issues by key + site cloudId
+        const key = `${issue._site.cloudId}::${issue.key}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           merged.push(issue);
@@ -210,7 +209,7 @@ export async function getIssueWorklogs(issueKey, issueSite) {
 /**
  * Search for users across ALL sites.
  * Deduplicates by email address.
- * Each returned user has a `siteAccounts` array: [{accountId, siteUrl, siteName}]
+ * Each returned user has a `siteAccounts` array: [{accountId, cloudId, siteName}]
  */
 export async function searchUsers(query) {
   const sites = getSites();
@@ -235,11 +234,12 @@ export async function searchUsers(query) {
       if (byEmail.has(key)) {
         const existing = byEmail.get(key);
         // Add this site's accountId to the siteAccounts list
-        const alreadyHasSite = existing.siteAccounts.some(sa => sa.siteUrl === user._site.jiraUrl);
+        const alreadyHasSite = existing.siteAccounts.some(sa => sa.cloudId === user._site.cloudId);
         if (!alreadyHasSite) {
           existing.siteAccounts.push({
             accountId: user.accountId,
-            siteUrl: user._site.jiraUrl,
+            cloudId: user._site.cloudId,
+            siteUrl: user._site.url,
             siteName: user._site.name,
           });
         }
@@ -248,7 +248,8 @@ export async function searchUsers(query) {
           ...user,
           siteAccounts: [{
             accountId: user.accountId,
-            siteUrl: user._site.jiraUrl,
+            cloudId: user._site.cloudId,
+            siteUrl: user._site.url,
             siteName: user._site.name,
           }],
         });
@@ -279,7 +280,7 @@ export function buildUserWorklogJqlPerSite(selectedUsers, dateFrom, dateTo) {
     const accountIds = [];
     selectedUsers.forEach(u => {
       if (u.siteAccounts) {
-        const siteAcct = u.siteAccounts.find(sa => sa.siteUrl === site.jiraUrl);
+        const siteAcct = u.siteAccounts.find(sa => sa.cloudId === site.cloudId);
         if (siteAcct) accountIds.push(siteAcct.accountId);
       } else if (u.accountId) {
         // Legacy single-site user
@@ -347,7 +348,7 @@ export function buildUserCycleTimeJqlPerSite(selectedUsers, dateFrom, dateTo) {
     const accountIds = [];
     selectedUsers.forEach(u => {
       if (u.siteAccounts) {
-        const siteAcct = u.siteAccounts.find(sa => sa.siteUrl === site.jiraUrl);
+        const siteAcct = u.siteAccounts.find(sa => sa.cloudId === site.cloudId);
         if (siteAcct) accountIds.push(siteAcct.accountId);
       } else if (u.accountId) {
         accountIds.push(u.accountId);
@@ -376,7 +377,7 @@ export function buildUserLaneTimeJqlPerSite(selectedUsers, dateFrom, dateTo) {
     const accountIds = [];
     selectedUsers.forEach(u => {
       if (u.siteAccounts) {
-        const siteAcct = u.siteAccounts.find(sa => sa.siteUrl === site.jiraUrl);
+        const siteAcct = u.siteAccounts.find(sa => sa.cloudId === site.cloudId);
         if (siteAcct) accountIds.push(siteAcct.accountId);
       } else if (u.accountId) {
         accountIds.push(u.accountId);

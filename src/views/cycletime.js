@@ -396,7 +396,7 @@ function renderResults(cycleData) {
   const siteGroups = new Map();
   cycleData.sort((a, b) => b.cycleTimeMs - a.cycleTimeMs).forEach(d => {
     const siteName = d.issue._site?.name || 'Default';
-    const siteUrl = d.issue._site?.jiraUrl || '';
+    const siteUrl = d.issue._site?.url || '';
     const key = siteUrl;
     if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
     siteGroups.get(key).items.push(d);

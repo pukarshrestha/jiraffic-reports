@@ -2,7 +2,7 @@
  * Settings View — Work week, expected hours, holidays, and user groups
  */
 
-import { getCredentials, getSites, addSite, removeSite, validateCredentials } from '../services/auth.js';
+import { getCredentials, getAccessibleSites, getSelectedSiteIds, saveSelectedSiteIds, loadSitesCache, addAnotherAccount, removeAccount, getAccountsInfo } from '../services/auth.js';
 import { getSettings, saveSettings, getGroups, saveGroups, getHolidays, saveHolidays } from '../services/settings.js';
 import { searchUsers } from '../services/jira.js';
 import { showToast } from '../utils/toast.js';
@@ -11,8 +11,10 @@ import { renderAppShell, updateBreadcrumbs } from '../components/shell.js';
 import ExcelJS from 'exceljs';
 
 let groupSearchTimeout = null;
+let _accessibleSites = [];
+let _accounts = [];
 
-export function renderSettings() {
+export async function renderSettings() {
   const creds = getCredentials();
   if (!creds) {
     navigate('/login');
@@ -22,6 +24,10 @@ export function renderSettings() {
   const app = document.getElementById('app');
   renderAppShell(app, 'settings');
   updateBreadcrumbs([{ label: 'Settings' }]);
+
+  // Load accessible sites and accounts from server
+  _accessibleSites = await getAccessibleSites();
+  _accounts = await getAccountsInfo();
 
   const settings = getSettings();
   const content = document.getElementById('page-content');
@@ -37,33 +43,12 @@ export function renderSettings() {
     <div class="card mb-300" id="settings-sites">
       <div class="settings-section-title-row">
         <h3 class="text-heading-small">Connected Sites</h3>
-        <button class="btn btn-primary settings-add-group-btn" id="toggle-add-site-btn">
-          + Add Site
+        <button class="btn btn-primary settings-add-group-btn" id="add-account-btn">
+          + Add Atlassian Account
         </button>
       </div>
-      <p class="settings-section-desc">Manage your connected Jira Cloud instances. Data is merged from all sites.</p>
+      <p class="settings-section-desc">All Jira Cloud sites from your connected Atlassian accounts are used for reports. Add more accounts to aggregate data across organizations.</p>
       <div id="sites-list">${renderSitesList()}</div>
-      <div id="add-site-form" class="d-none mt-200">
-        <div class="settings-add-site-grid">
-          <div class="form-group">
-            <label class="form-label" for="new-site-url">Jira URL</label>
-            <input class="input" type="url" id="new-site-url" placeholder="https://company.atlassian.net" />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="new-site-email">Email</label>
-            <input class="input" type="email" id="new-site-email" placeholder="you@company.com" />
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="new-site-token">API Token</label>
-            <input class="input" type="password" id="new-site-token" placeholder="API token" />
-          </div>
-        </div>
-        <div class="flex-row-gap-100 mt-100">
-          <button class="btn btn-primary" id="save-site-btn">Connect Site</button>
-          <button class="btn btn-subtle" id="cancel-add-site-btn">Cancel</button>
-        </div>
-        <div id="add-site-error" class="login-error-box d-none mt-100"><p class="login-error-text" id="add-site-error-text"></p></div>
-      </div>
     </div>
 
     <!-- Work Week -->
@@ -125,19 +110,59 @@ export function renderSettings() {
 }
 
 function renderSitesList() {
-  const sites = getSites();
-  if (sites.length === 0) {
-    return '<p class="settings-empty-state">No sites connected. Add a Jira site to get started.</p>';
+  if (_accessibleSites.length === 0) {
+    return '<p class="settings-empty-state">No accessible Jira sites found. Try logging out and back in.</p>';
   }
-  return sites.map(s => `
-    <div class="login-site-card">
-      <div class="login-site-info">
-        <div class="login-site-name">${s.name}</div>
-        <div class="login-site-url">${s.jiraUrl}</div>
+
+  // Group sites by account
+  const hasMultipleAccounts = _accounts.length > 1;
+
+  if (_accounts.length === 0) {
+    // Fallback: just list sites without account grouping
+    return `
+      <div class="settings-sites-list">
+        ${_accessibleSites.map(s => `
+          <div class="settings-site-item">
+            <div class="settings-site-item-info">
+              <div class="login-site-name">${s.name}</div>
+              <div class="login-site-url">${s.url}</div>
+            </div>
+            <span class="lozenge lozenge-success">Connected</span>
+          </div>
+        `).join('')}
       </div>
-      <button class="btn-subtle btn-icon-only login-site-remove settings-remove-site" data-site-id="${s.id}" title="Remove site">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+    `;
+  }
+
+  return _accounts.map((acct, idx) => `
+    <div class="settings-account-group">
+      <div class="settings-account-header">
+        <div class="settings-account-info">
+          <span class="avatar avatar-sm">${(acct.displayName || acct.email || '?').charAt(0).toUpperCase()}</span>
+          <div>
+            <div class="settings-account-name">${acct.displayName || acct.email}</div>
+            <div class="settings-account-email">${acct.email} · ${acct.sitesCount} site${acct.sitesCount !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
+        ${hasMultipleAccounts ? `
+          <button class="btn btn-subtle btn-icon-only settings-remove-account" data-account-email="${acct.email}" title="Remove account">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        ` : ''}
+      </div>
+      <div class="settings-account-sites">
+        ${_accessibleSites
+          .filter(s => s.accountEmail === acct.email)
+          .map(s => `
+            <div class="settings-site-item">
+              <div class="settings-site-item-info">
+                <div class="login-site-name">${s.name}</div>
+                <div class="login-site-url">${s.url}</div>
+              </div>
+              <span class="lozenge lozenge-success">Connected</span>
+            </div>
+          `).join('')}
+      </div>
     </div>
   `).join('');
 }
@@ -233,80 +258,43 @@ function renderGroupsList(groups) {
   `).join('');
 }
 
-function attachSiteRemoveListeners() {
-  document.querySelectorAll('.settings-remove-site').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const siteId = btn.dataset.siteId;
-      if (confirm('Remove this site?')) {
-        removeSite(siteId);
-        showToast('info', 'Site removed');
-        document.getElementById('sites-list').innerHTML = renderSitesList();
-        attachSiteRemoveListeners();
+function attachSettingsListeners(settings) {
+  // Add another Atlassian account
+  document.getElementById('add-account-btn')?.addEventListener('click', () => {
+    addAnotherAccount();
+  });
+
+  // Remove account buttons
+  document.querySelectorAll('.settings-remove-account').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const email = btn.dataset.accountEmail;
+      if (confirm(`Remove the account ${email}? Sites from this account will no longer be included in reports.`)) {
+        const success = await removeAccount(email);
+        if (success) {
+          showToast('success', 'Account removed');
+          _accessibleSites = await getAccessibleSites();
+          _accounts = await getAccountsInfo();
+          await loadSitesCache();
+          document.getElementById('sites-list').innerHTML = renderSitesList();
+          // Re-attach remove listeners
+          document.querySelectorAll('.settings-remove-account').forEach(b => {
+            b.addEventListener('click', async () => {
+              const em = b.dataset.accountEmail;
+              if (confirm(`Remove the account ${em}?`)) {
+                const ok = await removeAccount(em);
+                if (ok) {
+                  showToast('success', 'Account removed');
+                  renderSettings();
+                }
+              }
+            });
+          });
+        } else {
+          showToast('error', 'Failed to remove account');
+        }
       }
     });
   });
-}
-
-function attachSettingsListeners(settings) {
-  // Connected sites management
-  document.getElementById('toggle-add-site-btn')?.addEventListener('click', () => {
-    document.getElementById('add-site-form').classList.toggle('d-none');
-  });
-
-  document.getElementById('cancel-add-site-btn')?.addEventListener('click', () => {
-    document.getElementById('add-site-form').classList.add('d-none');
-  });
-
-  document.getElementById('save-site-btn')?.addEventListener('click', async () => {
-    const url = document.getElementById('new-site-url').value.trim();
-    const email = document.getElementById('new-site-email').value.trim();
-    const token = document.getElementById('new-site-token').value.trim();
-    const errorDiv = document.getElementById('add-site-error');
-    const errorText = document.getElementById('add-site-error-text');
-
-    if (!url || !email || !token) {
-      errorText.textContent = 'Please fill in all fields';
-      errorDiv.classList.remove('d-none');
-      return;
-    }
-
-    if (getSites().some(s => s.jiraUrl.replace(/\/+$/, '') === url.replace(/\/+$/, ''))) {
-      errorText.textContent = 'This site is already connected';
-      errorDiv.classList.remove('d-none');
-      return;
-    }
-
-    const saveBtn = document.getElementById('save-site-btn');
-    saveBtn.disabled = true;
-    saveBtn.textContent = 'Connecting...';
-    errorDiv.classList.add('d-none');
-
-    try {
-      const result = await validateCredentials(url, email, token);
-      if (result.success) {
-        const siteName = new URL(url).hostname.split('.')[0];
-        addSite(siteName, url, email, token);
-        showToast('success', 'Site connected', siteName);
-        document.getElementById('sites-list').innerHTML = renderSitesList();
-        document.getElementById('add-site-form').classList.add('d-none');
-        document.getElementById('new-site-url').value = '';
-        document.getElementById('new-site-email').value = '';
-        document.getElementById('new-site-token').value = '';
-        attachSiteRemoveListeners();
-      } else {
-        errorText.textContent = result.error || 'Authentication failed';
-        errorDiv.classList.remove('d-none');
-      }
-    } catch (err) {
-      errorText.textContent = err.message;
-      errorDiv.classList.remove('d-none');
-    } finally {
-      saveBtn.disabled = false;
-      saveBtn.textContent = 'Connect Site';
-    }
-  });
-
-  attachSiteRemoveListeners();
 
   // Work week toggles
   document.getElementById('workweek-toggles').addEventListener('click', (e) => {
@@ -464,7 +452,7 @@ function handleHolidayUpload(event) {
       });
 
       saveHolidays(merged);
-      const settings = getSettings();
+      const settingsReloaded = getSettings();
 
       document.getElementById('holiday-list').innerHTML = renderHolidayList(merged);
       document.getElementById('holiday-count').textContent = `${merged.length} holiday${merged.length !== 1 ? 's' : ''}`;
@@ -600,6 +588,56 @@ function injectSettingsStyles() {
       background: var(--ds-background-brand-bold);
       border-color: var(--ds-background-brand-bold);
       color: var(--ds-text-inverse);
+    }
+
+    .settings-account-group {
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-200);
+      margin-top: var(--ds-space-150);
+      overflow: hidden;
+    }
+    .settings-account-group + .settings-account-group {
+      margin-top: var(--ds-space-150);
+    }
+    .settings-account-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--ds-space-150) var(--ds-space-200);
+      background: var(--ds-surface-sunken);
+      border-bottom: 1px solid var(--ds-border);
+    }
+    .settings-account-info {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-150);
+    }
+    .settings-account-name {
+      font: var(--ds-font-body);
+      font-weight: var(--ds-font-weight-semibold);
+      color: var(--ds-text);
+    }
+    .settings-account-email {
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtle);
+    }
+    .settings-account-sites {
+      padding: var(--ds-space-100) var(--ds-space-200);
+    }
+    .settings-site-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--ds-space-100) 0;
+    }
+    .settings-site-item + .settings-site-item {
+      border-top: 1px solid var(--ds-border);
+    }
+    .settings-site-item-info {
+      min-width: 0;
+    }
+    .settings-sites-list {
+      margin-top: var(--ds-space-100);
     }
 
     .settings-group-card {

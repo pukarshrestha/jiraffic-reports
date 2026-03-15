@@ -2,7 +2,7 @@
  * App Shell — Sidebar + Top Bar
  */
 
-import { getSavedUser, logout } from '../services/auth.js';
+import { getSavedUser, logout, invalidateAuthCache } from '../services/auth.js';
 import { navigate, getCurrentRoute } from '../utils/router.js';
 import { toggleTheme, getTheme } from '../utils/theme.js';
 
@@ -142,8 +142,9 @@ export function renderAppShell(container, activeView = 'dashboard') {
   });
 
   // Logout
-  document.getElementById('logout-btn').addEventListener('click', () => {
-    logout();
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    await logout();
+    invalidateAuthCache();
     navigate('/login');
   });
 

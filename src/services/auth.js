@@ -1,102 +1,142 @@
 /**
- * Auth Service — Manage Jira credentials and sessions
+ * Auth Service — OAuth 2.0 session management
  *
- * Supports multiple Jira Cloud sites.
- * Stores credentials as an array in localStorage.
- * Deduplication of users across sites is handled in jira.js.
+ * Session is managed server-side via signed cookies.
+ * Client stores only UI preferences (selected sites, cached user info).
  */
 
-const SITES_KEY = 'jiraffic-sites';
+const SELECTED_SITES_KEY = 'jiraffic-selected-sites';
+let _cachedStatus = null;
+let _cachedStatusTime = 0;
+const STATUS_CACHE_TTL = 5000; // 5 seconds
 
-/* ── Multi-Site Storage ──────────────────────────── */
+/* ── Session Status ─────────────────────────────────── */
 
 /**
- * Get all saved Jira sites
- * @returns {Array<{id: string, name: string, jiraUrl: string, email: string, apiToken: string}>}
+ * Check if user is logged in (async — calls server)
+ * Caches result for STATUS_CACHE_TTL ms to avoid spamming.
  */
-export function getSites() {
+export async function checkAuthStatus() {
+  if (_cachedStatus && (Date.now() - _cachedStatusTime < STATUS_CACHE_TTL)) {
+    return _cachedStatus;
+  }
+
   try {
-    const raw = localStorage.getItem(SITES_KEY);
-    if (!raw) return [];
-    return JSON.parse(atob(raw));
+    const resp = await fetch('/auth/status', { credentials: 'include' });
+    const data = await resp.json();
+    _cachedStatus = data;
+    _cachedStatusTime = Date.now();
+    return data;
+  } catch {
+    return { loggedIn: false };
+  }
+}
+
+/**
+ * Check if logged in (async)
+ */
+export async function isLoggedIn() {
+  const status = await checkAuthStatus();
+  return status.loggedIn;
+}
+
+/**
+ * Invalidate cached auth status (call after login/logout)
+ */
+export function invalidateAuthCache() {
+  _cachedStatus = null;
+  _cachedStatusTime = 0;
+}
+
+/* ── Accessible Sites ───────────────────────────────── */
+
+/**
+ * Fetch all accessible Jira sites from the server
+ * @returns {Promise<Array<{cloudId, name, url, avatarUrl, accountEmail}>>}
+ */
+export async function getAccessibleSites() {
+  try {
+    const resp = await fetch('/auth/sites', { credentials: 'include' });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.sites || [];
   } catch {
     return [];
   }
 }
 
-function saveSites(sites) {
-  localStorage.setItem(SITES_KEY, btoa(JSON.stringify(sites)));
-}
-
 /**
- * Add a new site. Returns the site object.
+ * Get info about all connected accounts
+ * @returns {Promise<Array<{email, displayName, sitesCount}>>}
  */
-export function addSite(name, jiraUrl, email, apiToken) {
-  const sites = getSites();
-  const id = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36);
-  const site = {
-    id,
-    name: name || new URL(jiraUrl).hostname.split('.')[0],
-    jiraUrl: jiraUrl.replace(/\/+$/, ''),
-    email,
-    apiToken,
-  };
-  sites.push(site);
-  saveSites(sites);
-  return site;
-}
-
-/**
- * Remove a site by ID
- */
-export function removeSite(id) {
-  const sites = getSites().filter(s => s.id !== id);
-  saveSites(sites);
-  return sites;
-}
-
-/**
- * Backward compat — get first site's credentials
- */
-export function getCredentials() {
-  const sites = getSites();
-  if (sites.length === 0) return null;
-  return sites[0];
-}
-
-export function isLoggedIn() {
-  return getSites().length > 0;
-}
-
-/**
- * Validate credentials by calling Jira's /myself endpoint
- */
-export async function validateCredentials(jiraUrl, email, apiToken) {
-  const url = jiraUrl.replace(/\/+$/, '');
+export async function getAccountsInfo() {
   try {
-    const resp = await fetch('/api/jira/myself', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Jira-Url': url,
-        'X-Jira-Email': email,
-        'X-Jira-Token': apiToken,
-      },
-    });
-
-    if (!resp.ok) {
-      const errorData = await resp.json().catch(() => ({}));
-      throw new Error(errorData.message || `Authentication failed (${resp.status})`);
-    }
-
-    const user = await resp.json();
-    return { success: true, user };
-  } catch (err) {
-    return { success: false, error: err.message };
+    const resp = await fetch('/auth/sites', { credentials: 'include' });
+    if (!resp.ok) return [];
+    const data = await resp.json();
+    return data.accounts || [];
+  } catch {
+    return [];
   }
 }
 
-/* ── User Info ───────────────────────────────────── */
+/* ── Selected Sites (localStorage) ──────────────────── */
+
+/**
+ * Get the user's selected site cloudIds.
+ * If none selected, return all accessible sites (default: all selected).
+ */
+export function getSelectedSiteIds() {
+  try {
+    const raw = localStorage.getItem(SELECTED_SITES_KEY);
+    if (!raw) return null; // null = "all sites"
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save selected site cloudIds
+ * @param {string[]} cloudIds
+ */
+export function saveSelectedSiteIds(cloudIds) {
+  localStorage.setItem(SELECTED_SITES_KEY, JSON.stringify(cloudIds));
+}
+
+/**
+ * Get selected sites as full objects (filtered from accessible sites).
+ * If no selection saved, returns all accessible sites.
+ * @returns {Promise<Array<{cloudId, name, url}>>}
+ */
+export async function getSelectedSites() {
+  const allSites = await getAccessibleSites();
+  const selectedIds = getSelectedSiteIds();
+
+  if (!selectedIds) {
+    // All sites selected by default
+    return allSites;
+  }
+
+  return allSites.filter(s => selectedIds.includes(s.cloudId));
+}
+
+/**
+ * Sync alias — returns sites from cache (for use in synchronous contexts).
+ * Must call loadSitesCache() first during app init.
+ */
+let _sitesCache = [];
+
+export function getSites() {
+  return _sitesCache;
+}
+
+export async function loadSitesCache() {
+  _sitesCache = await getSelectedSites();
+  return _sitesCache;
+}
+
+/* ── User Info ──────────────────────────────────────── */
 
 export function getSavedUser() {
   try {
@@ -116,13 +156,63 @@ export function clearUser() {
   localStorage.removeItem('jiraffic-user');
 }
 
-/* ── Login State ─────────────────────────────────── */
+/* ── Login / Logout ─────────────────────────────────── */
 
-export function clearCredentials() {
-  localStorage.removeItem(SITES_KEY);
+/**
+ * Initiate OAuth login — redirects to server which redirects to Atlassian
+ */
+export function startOAuthLogin() {
+  window.location.href = '/auth/login';
 }
 
-export function logout() {
-  clearCredentials();
+/**
+ * Add another Atlassian account — keeps existing session
+ */
+export function addAnotherAccount() {
+  window.location.href = '/auth/login?addAccount=true';
+}
+
+/**
+ * Remove a connected account by email
+ */
+export async function removeAccount(email) {
+  try {
+    const resp = await fetch('/auth/remove-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    });
+    if (resp.ok) {
+      invalidateAuthCache();
+      _sitesCache = [];
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Logout — clear server session + local data
+ */
+export async function logout() {
+  try {
+    await fetch('/auth/logout', { method: 'POST', credentials: 'include' });
+  } catch {
+    // Ignore fetch errors on logout
+  }
   clearUser();
+  localStorage.removeItem(SELECTED_SITES_KEY);
+  invalidateAuthCache();
+  _sitesCache = [];
+}
+
+/* ── Legacy compat — getCredentials returns first site ── */
+
+export function getCredentials() {
+  const sites = getSites();
+  if (sites.length === 0) return null;
+  return sites[0];
 }

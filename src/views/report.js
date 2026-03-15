@@ -106,7 +106,7 @@ async function executeJQL(jql) {
               const lozengeClass = statusCat === 'done' ? 'lozenge-success' : statusCat === 'indeterminate' ? 'lozenge-info' : 'lozenge-default';
               return `
                 <tr>
-                  <td><a href="${getCredentials()?.jiraUrl}/browse/${issue.key}" target="_blank" rel="noopener" class="issue-key-link">${issue.key}</a></td>
+                  <td><a href="${getCredentials()?.url}/browse/${issue.key}" target="_blank" rel="noopener" class="issue-key-link">${issue.key}</a></td>
                   <td class="issue-summary-cell">${issue.fields?.summary || ''}</td>
                   <td><span class="lozenge ${lozengeClass}">${issue.fields?.status?.name || ''}</span></td>
                   <td>${issue.fields?.issuetype?.name || ''}</td>

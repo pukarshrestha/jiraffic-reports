@@ -451,7 +451,7 @@ async function generateWorklogReport() {
     }
 
     const creds = getCredentials();
-    const jiraUrl = creds?.jiraUrl || '';
+    const jiraUrl = creds?.url || '';
 
     // Sort by date
     const sortedDays = Object.keys(dayTotals).sort();
@@ -825,7 +825,7 @@ function renderTaskAccordionItemsGrouped(issues, jiraUrl, tabId) {
   const siteGroups = new Map();
   issues.sort((a, b) => b.totalSeconds - a.totalSeconds).forEach(iw => {
     const siteName = iw.issue._site?.name || 'Default';
-    const siteUrl = iw.issue._site?.jiraUrl || jiraUrl;
+    const siteUrl = iw.issue._site?.url || jiraUrl;
     const key = siteUrl;
     if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
     siteGroups.get(key).items.push(iw);
@@ -1206,7 +1206,7 @@ function showDayModal(tabId, dateStr) {
     const siteGroups = new Map();
     dayTasks.forEach(t => {
       const siteName = t.issue._site?.name || 'Default';
-      const siteUrl = t.issue._site?.jiraUrl || jiraUrl;
+      const siteUrl = t.issue._site?.url || jiraUrl;
       const key = siteUrl;
       if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
       siteGroups.get(key).items.push(t);

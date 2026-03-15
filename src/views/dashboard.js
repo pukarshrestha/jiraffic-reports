@@ -2,7 +2,7 @@
  * Dashboard View — Main app dashboard with project overview and report tiles
  */
 
-import { getCredentials, getSavedUser, logout } from '../services/auth.js';
+import { getCredentials, getSavedUser } from '../services/auth.js';
 import { getProjects, searchIssues } from '../services/jira.js';
 import { statusSummary } from '../services/reports.js';
 import { showToast } from '../utils/toast.js';
@@ -73,7 +73,6 @@ async function loadDashboardData() {
   } catch (err) {
     showToast('error', 'Failed to load data', err.message);
     if (err.message.includes('401') || err.message.includes('Authentication')) {
-      logout();
       navigate('/login');
     }
   }
