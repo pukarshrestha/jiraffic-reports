@@ -55,72 +55,71 @@ export async function renderWorkLog() {
       <p class="page-subtitle">Aggregated work logs across all projects</p>
     </div>
 
-    <!-- Filters -->
-    <div class="card mb-300" id="worklog-filters">
-      <div class="wl-filters-row">
-        
-        <!-- User Selector -->
-        <div class="form-group wl-user-selector" id="worklog-user-selector">
-          <label class="form-label">Users</label>
-          <div class="pos-relative">
-            <input class="input wl-search-input" type="text" id="user-search" placeholder="Search and add users..." autocomplete="off" />
-            <svg class="wl-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <div id="user-dropdown" class="user-dropdown d-none"></div>
+    <!-- Filters — Inline pill bar -->
+    <div class="wl-filter-bar" id="worklog-filters">
+      <div class="wl-filter-bar-left">
+        <!-- Users pill -->
+        <div class="wl-pill-wrapper" id="wl-users-pill-wrapper">
+          <button class="wl-filter-pill" id="wl-users-pill" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span id="wl-users-pill-label">Users</span>
+          </button>
+          <!-- Users popover -->
+          <div class="wl-popover d-none" id="wl-users-popover">
+            <div class="wl-popover-header">Select Users</div>
+            <div class="wl-popover-search">
+              <svg class="wl-popover-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input class="wl-popover-search-input" type="text" id="user-search" placeholder="Search users..." autocomplete="off" />
+            </div>
+            <div id="user-dropdown" class="wl-popover-results d-none"></div>
+            <div id="wl-selected-users-list" class="wl-selected-list"></div>
           </div>
         </div>
 
-        <!-- Date Range -->
-        <div class="form-group wl-date-range" id="worklog-date-range">
-          <label class="form-label">Period</label>
-          <select class="input" id="date-preset">
-            <option value="month">Month</option>
-            <option value="custom">Custom Date</option>
-          </select>
+        <!-- Date pill -->
+        <div class="wl-pill-wrapper" id="wl-date-pill-wrapper">
+          <button class="wl-filter-pill" id="wl-date-pill" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span id="wl-date-pill-label">March 2026</span>
+          </button>
+          <!-- Date popover -->
+          <div class="wl-popover d-none" id="wl-date-popover">
+            <div class="wl-popover-header">
+              <div class="wl-date-mode-toggle">
+                <button class="wl-date-mode-btn active" data-mode="month" type="button">Month</button>
+                <button class="wl-date-mode-btn" data-mode="custom" type="button">Custom</button>
+              </div>
+            </div>
+            <div id="wl-date-month-panel" class="wl-date-panel">
+              <div class="wl-date-year-row">
+                <button class="wl-date-nav-btn" id="wl-year-prev" type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <span class="wl-date-year-label" id="wl-year-label">2026</span>
+                <button class="wl-date-nav-btn" id="wl-year-next" type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+              </div>
+              <div class="wl-month-grid" id="wl-month-grid"></div>
+            </div>
+            <div id="wl-date-custom-panel" class="wl-date-panel d-none">
+              <div class="wl-custom-date-row">
+                <label class="wl-custom-date-label">From</label>
+                <input class="input wl-custom-date-input" type="date" id="date-from" value="${dateFrom}" />
+              </div>
+              <div class="wl-custom-date-row">
+                <label class="wl-custom-date-label">To</label>
+                <input class="input wl-custom-date-input" type="date" id="date-to" value="${dateTo}" />
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="form-group wl-date-month" id="worklog-date-month">
-          <label class="form-label">Month</label>
-          <select class="input" id="date-month">
-            <option value="0">January</option>
-            <option value="1">February</option>
-            <option value="2">March</option>
-            <option value="3">April</option>
-            <option value="4">May</option>
-            <option value="5">June</option>
-            <option value="6">July</option>
-            <option value="7">August</option>
-            <option value="8">September</option>
-            <option value="9">October</option>
-            <option value="10">November</option>
-            <option value="11">December</option>
-          </select>
-        </div>
-        <div class="form-group wl-date-year" id="worklog-date-year">
-          <label class="form-label">Year</label>
-          <select class="input" id="date-year">
-            ${generateYearOptions()}
-          </select>
-        </div>
-        <div class="form-group wl-date-custom d-none" id="worklog-date-custom">
-          <label class="form-label" for="date-from">From</label>
-          <input class="input" type="date" id="date-from" value="${dateFrom}" />
-        </div>
-        <div class="form-group wl-date-custom d-none" id="worklog-date-custom-to">
-          <label class="form-label" for="date-to">To</label>
-          <input class="input" type="date" id="date-to" value="${dateTo}" />
-        </div>
-
-
       </div>
-      <div id="user-chips" class="wl-user-chips">
-        ${renderUserChips()}
-      </div>
-      <div class="wl-actions-row">
-        <button class="btn btn-primary" id="generate-btn-bottom">
-          Generate Report
-        </button>
-        <button class="btn btn-default-outline d-none" id="export-excel-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Export Excel
+
+      <div class="wl-filter-bar-right">
+        <button class="btn btn-default-outline btn-sm d-none" id="export-excel-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
         </button>
       </div>
     </div>
@@ -132,67 +131,76 @@ export async function renderWorkLog() {
   // Inject custom styles for this view
   injectWorklogStyles();
 
-  // Date preset handler
-  const presetSelect = document.getElementById('date-preset');
-  const monthSelect = document.getElementById('date-month');
-  const yearSelect = document.getElementById('date-year');
-  const monthGroup = document.getElementById('worklog-date-month');
-  const yearGroup = document.getElementById('worklog-date-year');
-  const customFrom = document.getElementById('worklog-date-custom');
-  const customTo = document.getElementById('worklog-date-custom-to');
+  // ── Users pill popover ────────────────────────
+  const usersPill = document.getElementById('wl-users-pill');
+  const usersPopover = document.getElementById('wl-users-popover');
+  const datePill = document.getElementById('wl-date-pill');
+  const datePopover = document.getElementById('wl-date-popover');
 
-  // Set default selection to current month and year
-  monthSelect.value = String(now.getMonth());
-  yearSelect.value = String(now.getFullYear());
-
-  function applyMonthYear() {
-    const m = parseInt(monthSelect.value, 10);
-    const y = parseInt(yearSelect.value, 10);
-    dateFrom = formatDate(new Date(y, m, 1));
-    dateTo = formatDate(new Date(y, m + 1, 0));
-    document.getElementById('date-from').value = dateFrom;
-    document.getElementById('date-to').value = dateTo;
+  function updateUsersPillLabel() {
+    const label = document.getElementById('wl-users-pill-label');
+    if (selectedUsers.length === 0) {
+      label.textContent = 'Users';
+      usersPill.classList.remove('wl-pill-active');
+    } else if (selectedUsers.length === 1) {
+      label.textContent = selectedUsers[0].displayName;
+      usersPill.classList.add('wl-pill-active');
+    } else {
+      label.textContent = `${selectedUsers[0].displayName} +${selectedUsers.length - 1}`;
+      usersPill.classList.add('wl-pill-active');
+    }
   }
 
-  function toggleDateMode() {
-    const isCustom = presetSelect.value === 'custom';
-    monthGroup.classList.toggle('d-none', isCustom);
-    yearGroup.classList.toggle('d-none', isCustom);
-    customFrom.classList.toggle('d-none', !isCustom);
-    customTo.classList.toggle('d-none', !isCustom);
+  function renderSelectedUsersList() {
+    const list = document.getElementById('wl-selected-users-list');
+    if (!list) return;
+    if (selectedUsers.length === 0) {
+      list.innerHTML = '<div class="wl-selected-empty">No users selected</div>';
+      return;
+    }
+    list.innerHTML = selectedUsers.map((user, i) => `
+      <div class="wl-selected-user-item" data-index="${i}">
+        <div class="wl-selected-user-left">
+          ${user.avatarUrl
+            ? `<img src="${user.avatarUrl}" alt="" class="avatar avatar-xs wl-avatar-img" />`
+            : `<span class="avatar avatar-xs">${user.displayName.charAt(0).toUpperCase()}</span>`
+          }
+          <span class="wl-selected-user-name">${user.displayName}</span>
+        </div>
+        <button class="wl-selected-user-remove" data-index="${i}" type="button">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    `).join('');
+    list.querySelectorAll('.wl-selected-user-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index);
+        selectedUsers.splice(idx, 1);
+        renderSelectedUsersList();
+        updateUsersPillLabel();
+        scheduleRegenerate();
+      });
+    });
   }
 
-  presetSelect.addEventListener('change', () => {
-    toggleDateMode();
-    if (presetSelect.value === 'month') {
-      applyMonthYear();
-      generateWorklogReport();
+  function closeAllPopovers() {
+    usersPopover.classList.add('d-none');
+    datePopover.classList.add('d-none');
+  }
+
+  usersPill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !usersPopover.classList.contains('d-none');
+    closeAllPopovers();
+    if (!isOpen) {
+      usersPopover.classList.remove('d-none');
+      renderSelectedUsersList();
+      setTimeout(() => document.getElementById('user-search')?.focus(), 50);
     }
   });
 
-  monthSelect.addEventListener('change', () => {
-    applyMonthYear();
-    generateWorklogReport();
-  });
-
-  yearSelect.addEventListener('change', () => {
-    applyMonthYear();
-    generateWorklogReport();
-  });
-
-  // When custom date inputs change, auto-regenerate
-  document.getElementById('date-from').addEventListener('change', (e) => {
-    dateFrom = e.target.value;
-    generateWorklogReport();
-  });
-  document.getElementById('date-to').addEventListener('change', (e) => {
-    dateTo = e.target.value;
-    generateWorklogReport();
-  });
-
-  document.getElementById('generate-btn-bottom').addEventListener('click', generateWorklogReport);
-
-  // User search
+  // User search inside popover
   const searchInput = document.getElementById('user-search');
   searchInput.addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
@@ -204,12 +212,6 @@ export async function renderWorkLog() {
     searchTimeout = setTimeout(() => searchAndShowUsers(query), 300);
   });
 
-  searchInput.addEventListener('focus', () => {
-    const query = searchInput.value.trim();
-    if (query.length >= 2) searchAndShowUsers(query);
-  });
-
-  // Keyboard shortcuts for search
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -218,16 +220,111 @@ export async function renderWorkLog() {
     }
     if (e.key === 'Escape') {
       document.getElementById('user-dropdown').classList.add('d-none');
-      searchInput.blur();
+      closeAllPopovers();
     }
   });
 
-  // Close dropdown on outside click
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#user-search') && !e.target.closest('#user-dropdown')) {
-      document.getElementById('user-dropdown').classList.add('d-none');
+  // ── Date pill popover ─────────────────────────
+  let pickerYear = now.getFullYear();
+  let pickerMonth = now.getMonth();
+  let dateMode = 'month'; // 'month' or 'custom'
+
+  function updateDatePillLabel() {
+    const label = document.getElementById('wl-date-pill-label');
+    if (dateMode === 'month') {
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      label.textContent = `${monthNames[pickerMonth]} ${pickerYear}`;
+    } else {
+      const from = document.getElementById('date-from')?.value || dateFrom;
+      const to = document.getElementById('date-to')?.value || dateTo;
+      label.textContent = `${from} → ${to}`;
+    }
+    datePill.classList.add('wl-pill-active');
+  }
+
+  function renderMonthGrid() {
+    const grid = document.getElementById('wl-month-grid');
+    const yearLabel = document.getElementById('wl-year-label');
+    if (!grid || !yearLabel) return;
+    yearLabel.textContent = pickerYear;
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    grid.innerHTML = monthNames.map((name, i) => `
+      <button class="wl-month-cell${i === pickerMonth && pickerYear === new Date().getFullYear() ? ' active' : ''}${i === pickerMonth ? ' selected' : ''}"
+              data-month="${i}" type="button">${name}</button>
+    `).join('');
+    grid.querySelectorAll('.wl-month-cell').forEach(cell => {
+      cell.addEventListener('click', () => {
+        pickerMonth = parseInt(cell.dataset.month);
+        dateFrom = formatDate(new Date(pickerYear, pickerMonth, 1));
+        dateTo = formatDate(new Date(pickerYear, pickerMonth + 1, 0));
+        updateDatePillLabel();
+        renderMonthGrid();
+        closeAllPopovers();
+        generateWorklogReport();
+      });
+    });
+  }
+
+  datePill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !datePopover.classList.contains('d-none');
+    closeAllPopovers();
+    if (!isOpen) {
+      datePopover.classList.remove('d-none');
+      renderMonthGrid();
     }
   });
+
+  // Year navigation
+  document.getElementById('wl-year-prev').addEventListener('click', (e) => {
+    e.stopPropagation();
+    pickerYear--;
+    renderMonthGrid();
+  });
+  document.getElementById('wl-year-next').addEventListener('click', (e) => {
+    e.stopPropagation();
+    pickerYear++;
+    renderMonthGrid();
+  });
+
+  // Date mode toggle (Month / Custom)
+  datePopover.querySelectorAll('.wl-date-mode-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dateMode = btn.dataset.mode;
+      datePopover.querySelectorAll('.wl-date-mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('wl-date-month-panel').classList.toggle('d-none', dateMode !== 'month');
+      document.getElementById('wl-date-custom-panel').classList.toggle('d-none', dateMode !== 'custom');
+    });
+  });
+
+  // Custom date inputs
+  document.getElementById('date-from').addEventListener('change', (e) => {
+    dateFrom = e.target.value;
+    updateDatePillLabel();
+    generateWorklogReport();
+  });
+  document.getElementById('date-to').addEventListener('change', (e) => {
+    dateTo = e.target.value;
+    updateDatePillLabel();
+    generateWorklogReport();
+  });
+
+  // Close popovers on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#wl-users-pill-wrapper')) {
+      usersPopover.classList.add('d-none');
+    }
+    if (!e.target.closest('#wl-date-pill-wrapper')) {
+      datePopover.classList.add('d-none');
+    }
+  });
+
+  // Initialize labels and state
+  updateUsersPillLabel();
+  updateDatePillLabel();
+  renderSelectedUsersList();
 
   // Auto-generate on load
   if (selectedUsers.length > 0) {
@@ -235,36 +332,30 @@ export async function renderWorkLog() {
   }
 }
 
-function renderUserChips() {
-  return selectedUsers.map((user, i) => `
-    <span class="user-chip" data-index="${i}">
-      ${user.avatarUrl
-        ? `<img src="${user.avatarUrl}" alt="" class="avatar avatar-sm wl-chip-avatar wl-avatar-img" />`
-        : `<span class="avatar avatar-sm wl-chip-avatar">${user.displayName.charAt(0).toUpperCase()}</span>`
-      }
-      <span>${user.displayName}</span>
-      <button class="user-chip-remove" data-index="${i}" aria-label="Remove ${user.displayName}">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </span>
-  `).join('');
-}
+function renderUserChips() { return ''; }
 
 function refreshUserChips() {
-  const container = document.getElementById('user-chips');
-  if (!container) return;
-  container.innerHTML = renderUserChips();
-
-  // Re-attach remove handlers
-  container.querySelectorAll('.user-chip-remove').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const idx = parseInt(btn.dataset.index);
-      selectedUsers.splice(idx, 1);
-      refreshUserChips();
-      scheduleRegenerate();
-    });
-  });
+  // Update pill label and selected users list in popover
+  const pillLabel = document.getElementById('wl-users-pill-label');
+  if (pillLabel) {
+    if (selectedUsers.length === 0) {
+      pillLabel.textContent = 'Users';
+      document.getElementById('wl-users-pill')?.classList.remove('wl-pill-active');
+    } else if (selectedUsers.length === 1) {
+      pillLabel.textContent = selectedUsers[0].displayName;
+      document.getElementById('wl-users-pill')?.classList.add('wl-pill-active');
+    } else {
+      pillLabel.textContent = `${selectedUsers[0].displayName} +${selectedUsers.length - 1}`;
+      document.getElementById('wl-users-pill')?.classList.add('wl-pill-active');
+    }
+  }
+  // Re-render selected list in popover if open
+  const list = document.getElementById('wl-selected-users-list');
+  if (list && !document.getElementById('wl-users-popover')?.classList.contains('d-none')) {
+    // Trigger re-render from within popover
+    const event = new CustomEvent('wl-refresh-selected');
+    document.dispatchEvent(event);
+  }
 }
 
 function scheduleRegenerate() {
@@ -1426,14 +1517,6 @@ function filterTasks(tabId) {
 TASK_DETAILS_DISABLED */
 
 
-function generateYearOptions() {
-  const currentYear = new Date().getFullYear();
-  const options = [];
-  for (let y = currentYear; y >= currentYear - 5; y--) {
-    options.push(`<option value="${y}">${y}</option>`);
-  }
-  return options.join('');
-}
 
 /* ── Excel Export ─────────────────────────────────── */
 
@@ -1789,6 +1872,277 @@ function injectWorklogStyles() {
   const style = document.createElement('style');
   style.id = 'worklog-styles';
   style.textContent = `
+    /* ── Inline Filter Bar ─────────────────────────── */
+    .wl-filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--ds-space-150);
+      padding: var(--ds-space-100) 0;
+      margin-bottom: var(--ds-space-200);
+      border-bottom: 1px solid var(--ds-border);
+    }
+    .wl-filter-bar-left {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+      flex-wrap: wrap;
+    }
+    .wl-filter-bar-right {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+    }
+    .wl-pill-wrapper {
+      position: relative;
+    }
+    .wl-filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--ds-space-075);
+      padding: 6px 12px;
+      background: var(--ds-background-neutral);
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-round);
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-medium);
+      color: var(--ds-text-subtle);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-filter-pill:hover {
+      background: var(--ds-background-neutral-hovered);
+      border-color: var(--ds-border-bold);
+      color: var(--ds-text);
+    }
+    .wl-filter-pill.wl-pill-active {
+      background: var(--ds-background-brand-subtlest);
+      border-color: var(--ds-border-brand);
+      color: var(--ds-text-brand);
+    }
+    .wl-filter-pill.wl-pill-active:hover {
+      background: var(--ds-background-brand-subtlest-hovered);
+    }
+
+    /* ── Popover ─────────────────────────────────────── */
+    .wl-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 300px;
+      background: var(--ds-surface-overlay);
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-200);
+      box-shadow: var(--ds-shadow-overlay);
+      z-index: 400;
+      animation: wl-popover-in 0.15s ease-out;
+    }
+    @keyframes wl-popover-in {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .wl-popover-header {
+      padding: var(--ds-space-150) var(--ds-space-150) var(--ds-space-075);
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-semibold);
+      color: var(--ds-text-subtlest);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-size: 11px;
+    }
+    .wl-popover-search {
+      padding: 0 var(--ds-space-150) var(--ds-space-100);
+      position: relative;
+    }
+    .wl-popover-search-icon {
+      position: absolute;
+      left: calc(var(--ds-space-150) + 8px);
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--ds-icon-subtle);
+      pointer-events: none;
+    }
+    .wl-popover-search-input {
+      width: 100%;
+      padding: 6px 8px 6px 30px;
+      background: var(--ds-background-input);
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-100);
+      color: var(--ds-text);
+      font: var(--ds-font-body-small);
+      outline: none;
+      transition: border-color var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-popover-search-input:focus {
+      border-color: var(--ds-border-focused);
+      box-shadow: 0 0 0 1px var(--ds-border-focused);
+    }
+    .wl-popover-results {
+      max-height: 180px;
+      overflow-y: auto;
+      border-top: 1px solid var(--ds-border);
+    }
+
+    /* ── Selected Users List ──────────────────────── */
+    .wl-selected-list {
+      border-top: 1px solid var(--ds-border);
+      padding: var(--ds-space-075) 0;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .wl-selected-user-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: var(--ds-space-050) var(--ds-space-150);
+      transition: background-color var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-selected-user-item:hover {
+      background: var(--ds-background-neutral-subtle-hovered);
+    }
+    .wl-selected-user-left {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-075);
+      min-width: 0;
+    }
+    .wl-selected-user-name {
+      font: var(--ds-font-body-small);
+      color: var(--ds-text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .wl-selected-user-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      background: none;
+      border: none;
+      border-radius: var(--ds-radius-round);
+      cursor: pointer;
+      color: var(--ds-icon-subtle);
+      padding: 0;
+      flex-shrink: 0;
+    }
+    .wl-selected-user-remove:hover {
+      background: var(--ds-background-danger-bold);
+      color: var(--ds-text-inverse);
+    }
+    .wl-selected-empty {
+      padding: var(--ds-space-150);
+      text-align: center;
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtlest);
+    }
+
+    /* ── Date Popover ─────────────────────────────── */
+    .wl-date-mode-toggle {
+      display: flex;
+      gap: var(--ds-space-050);
+      background: var(--ds-background-neutral);
+      border-radius: var(--ds-radius-100);
+      padding: 2px;
+    }
+    .wl-date-mode-btn {
+      flex: 1;
+      padding: 4px 12px;
+      background: none;
+      border: none;
+      border-radius: var(--ds-radius-050);
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-medium);
+      color: var(--ds-text-subtle);
+      cursor: pointer;
+      transition: all var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-date-mode-btn.active {
+      background: var(--ds-surface);
+      color: var(--ds-text);
+      box-shadow: var(--ds-shadow-raised);
+    }
+    .wl-date-panel {
+      padding: var(--ds-space-150);
+    }
+    .wl-date-year-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--ds-space-150);
+    }
+    .wl-date-year-label {
+      font: var(--ds-font-body);
+      font-weight: var(--ds-font-weight-semibold);
+      color: var(--ds-text);
+    }
+    .wl-date-nav-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background: none;
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-100);
+      cursor: pointer;
+      color: var(--ds-icon);
+      transition: all var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-date-nav-btn:hover {
+      background: var(--ds-background-neutral-hovered);
+      border-color: var(--ds-border-bold);
+    }
+    .wl-month-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--ds-space-050);
+    }
+    .wl-month-cell {
+      padding: 8px 4px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: var(--ds-radius-100);
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-medium);
+      color: var(--ds-text);
+      cursor: pointer;
+      text-align: center;
+      transition: all var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-month-cell:hover {
+      background: var(--ds-background-neutral-hovered);
+      border-color: var(--ds-border);
+    }
+    .wl-month-cell.selected {
+      background: var(--ds-background-brand-bold);
+      color: var(--ds-text-inverse);
+      border-color: var(--ds-background-brand-bold);
+    }
+    .wl-month-cell.active:not(.selected) {
+      border-color: var(--ds-border-brand);
+      color: var(--ds-text-brand);
+    }
+
+    /* ── Custom Date Panel ────────────────────────── */
+    .wl-custom-date-row {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+      margin-bottom: var(--ds-space-100);
+    }
+    .wl-custom-date-row:last-child { margin-bottom: 0; }
+    .wl-custom-date-label {
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-medium);
+      color: var(--ds-text-subtle);
+      min-width: 36px;
+    }
+    .wl-custom-date-input {
+      flex: 1;
+    }
     /* User chips */
     .user-chip {
       display: inline-flex;
