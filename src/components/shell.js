@@ -50,10 +50,7 @@ export function renderAppShell(container, activeView = 'dashboard') {
               <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               Work Log
             </button>
-            <button class="sidebar-item ${activeView === 'cycletime' ? 'active' : ''}" data-nav="report/cycletime">
-              <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-              Cycle Time
-            </button>
+
             <button class="sidebar-item ${activeView === 'timeinlane' ? 'active' : ''}" data-nav="report/timeinlane">
               <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
               Time in Lane
@@ -62,10 +59,6 @@ export function renderAppShell(container, activeView = 'dashboard') {
 
           <div class="sidebar-section" id="sidebar-section-tools">
             <div class="sidebar-section-title">Tools</div>
-            <button class="sidebar-item ${activeView === 'jql' ? 'active' : ''}" data-nav="report/jql">
-              <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-              JQL Query
-            </button>
             <button class="sidebar-item ${activeView === 'settings' ? 'active' : ''}" data-nav="settings">
               <svg class="sidebar-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
               Settings
@@ -75,7 +68,9 @@ export function renderAppShell(container, activeView = 'dashboard') {
 
         <div class="sidebar-footer" id="sidebar-user-info">
           <div class="sidebar-user-row">
-            <div class="avatar avatar-sm">${initials}</div>
+            ${(user?.avatarUrls?.['48x48'] || user?.avatarUrl)
+              ? `<img src="${user.avatarUrls?.['48x48'] || user.avatarUrl}" alt="" class="avatar avatar-sm" style="object-fit:cover;" />`
+              : `<div class="avatar avatar-sm">${initials}</div>`}
             <div class="sidebar-user-info-col">
               <div class="sidebar-user-name">${user?.displayName || 'User'}</div>
               <div class="sidebar-user-email">${user?.emailAddress || ''}</div>

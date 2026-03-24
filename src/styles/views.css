@@ -326,36 +326,6 @@
   width: 40%;
 }
 
-/* ── JQL / Report ─────────────────────────────────── */
-.jql-input-row {
-  display: flex;
-  gap: var(--ds-space-100);
-}
-
-.jql-results-summary {
-  margin-bottom: var(--ds-space-150);
-  font: var(--ds-font-body-small);
-  color: var(--ds-text-subtle);
-}
-
-.jql-error-box {
-  padding: var(--ds-space-200);
-  background-color: var(--ds-background-danger);
-  border-radius: var(--ds-radius-200);
-}
-
-.jql-error-title {
-  font: var(--ds-font-body);
-  font-weight: var(--ds-font-weight-medium);
-  color: var(--ds-text-danger);
-  margin-bottom: var(--ds-space-050);
-}
-
-.jql-error-message {
-  font: var(--ds-font-body-small);
-  color: var(--ds-text-danger);
-}
-
 .issue-key-link {
   font-weight: var(--ds-font-weight-medium);
 }

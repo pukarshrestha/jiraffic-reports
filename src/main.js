@@ -13,9 +13,7 @@ import { registerRoute, initRouter, navigate } from './utils/router.js';
 import { isLoggedIn, loadSitesCache, checkAuthStatus, saveUser } from './services/auth.js';
 import { renderLogin } from './views/login.js';
 import { renderDashboard } from './views/dashboard.js';
-import { renderReport } from './views/report.js';
 import { renderWorkLog } from './views/worklog.js';
-import { renderCycleTime } from './views/cycletime.js';
 import { renderTimeInLane } from './views/timeinlane.js';
 import { renderSettings } from './views/settings.js';
 
@@ -49,31 +47,9 @@ registerRoute('/login', () => renderLogin());
 registerRoute('/dashboard', () => authGuard(() => renderDashboard()));
 
 // Report routes
-registerRoute('/report/jql', () => renderReport('jql'));
 registerRoute('/report/worklog', () => authGuard(() => renderWorkLog()));
-registerRoute('/report/cycletime', () => authGuard(() => renderCycleTime()));
 registerRoute('/report/timeinlane', () => authGuard(() => renderTimeInLane()));
 registerRoute('/settings', () => authGuard(() => renderSettings()));
 
-// Override the router to handle dynamic report routes
-const originalHashHandler = () => {
-  const hash = window.location.hash.slice(1) || '/login';
-
-  // Check for /report/:type/:projectKey pattern
-  const reportMatch = hash.match(/^\/report\/(\w+)\/(.+)$/);
-  if (reportMatch) {
-    const [, type, projectKey] = reportMatch;
-    authGuard(() => renderReport(type, projectKey));
-    return;
-  }
-};
-
-window.addEventListener('hashchange', originalHashHandler);
-
 // Initialize router
 initRouter();
-
-// Also handle the dynamic routes on initial load
-if (window.location.hash) {
-  originalHashHandler();
-}

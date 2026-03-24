@@ -15,6 +15,7 @@ let dateFrom = '';
 let dateTo = '';
 let searchTimeout = null;
 let lastReportData = null;
+let regenTimeout = null;
 
 // Timesheet weekly navigation state
 let timesheetState = { allDays: [], userMatrix: {}, weekIndex: 0, jiraUrl: '' };
@@ -43,6 +44,7 @@ export async function renderWorkLog() {
       accountId: savedUser.accountId,
       displayName: savedUser.displayName,
       emailAddress: savedUser.emailAddress || '',
+      avatarUrl: savedUser.avatarUrls?.['48x48'] || savedUser.avatarUrl || '',
     });
   }
 
@@ -71,14 +73,31 @@ export async function renderWorkLog() {
         <div class="form-group wl-date-range" id="worklog-date-range">
           <label class="form-label">Period</label>
           <select class="input" id="date-preset">
-            <optgroup label="Quick">
-              <option value="this-week">This Week</option>
-              <option value="last-week">Last Week</option>
-            </optgroup>
-            <optgroup label="Month">
-              ${generateMonthOptions()}
-            </optgroup>
+            <option value="month">Month</option>
             <option value="custom">Custom Date</option>
+          </select>
+        </div>
+        <div class="form-group wl-date-month" id="worklog-date-month">
+          <label class="form-label">Month</label>
+          <select class="input" id="date-month">
+            <option value="0">January</option>
+            <option value="1">February</option>
+            <option value="2">March</option>
+            <option value="3">April</option>
+            <option value="4">May</option>
+            <option value="5">June</option>
+            <option value="6">July</option>
+            <option value="7">August</option>
+            <option value="8">September</option>
+            <option value="9">October</option>
+            <option value="10">November</option>
+            <option value="11">December</option>
+          </select>
+        </div>
+        <div class="form-group wl-date-year" id="worklog-date-year">
+          <label class="form-label">Year</label>
+          <select class="input" id="date-year">
+            ${generateYearOptions()}
           </select>
         </div>
         <div class="form-group wl-date-custom d-none" id="worklog-date-custom">
@@ -115,28 +134,50 @@ export async function renderWorkLog() {
 
   // Date preset handler
   const presetSelect = document.getElementById('date-preset');
+  const monthSelect = document.getElementById('date-month');
+  const yearSelect = document.getElementById('date-year');
+  const monthGroup = document.getElementById('worklog-date-month');
+  const yearGroup = document.getElementById('worklog-date-year');
   const customFrom = document.getElementById('worklog-date-custom');
   const customTo = document.getElementById('worklog-date-custom-to');
 
-  // Set default selection to current month
-  const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  presetSelect.value = currentMonthValue;
+  // Set default selection to current month and year
+  monthSelect.value = String(now.getMonth());
+  yearSelect.value = String(now.getFullYear());
+
+  function applyMonthYear() {
+    const m = parseInt(monthSelect.value, 10);
+    const y = parseInt(yearSelect.value, 10);
+    dateFrom = formatDate(new Date(y, m, 1));
+    dateTo = formatDate(new Date(y, m + 1, 0));
+    document.getElementById('date-from').value = dateFrom;
+    document.getElementById('date-to').value = dateTo;
+  }
+
+  function toggleDateMode() {
+    const isCustom = presetSelect.value === 'custom';
+    monthGroup.classList.toggle('d-none', isCustom);
+    yearGroup.classList.toggle('d-none', isCustom);
+    customFrom.classList.toggle('d-none', !isCustom);
+    customTo.classList.toggle('d-none', !isCustom);
+  }
 
   presetSelect.addEventListener('change', () => {
-    const val = presetSelect.value;
-    if (val === 'custom') {
-      customFrom.classList.remove('d-none');
-      customTo.classList.remove('d-none');
-    } else {
-      customFrom.classList.add('d-none');
-      customTo.classList.add('d-none');
-      applyDatePreset(val);
-      // Update date inputs to reflect new dates
-      document.getElementById('date-from').value = dateFrom;
-      document.getElementById('date-to').value = dateTo;
-      // Auto-regenerate report
+    toggleDateMode();
+    if (presetSelect.value === 'month') {
+      applyMonthYear();
       generateWorklogReport();
     }
+  });
+
+  monthSelect.addEventListener('change', () => {
+    applyMonthYear();
+    generateWorklogReport();
+  });
+
+  yearSelect.addEventListener('change', () => {
+    applyMonthYear();
+    generateWorklogReport();
   });
 
   // When custom date inputs change, auto-regenerate
@@ -168,6 +209,19 @@ export async function renderWorkLog() {
     if (query.length >= 2) searchAndShowUsers(query);
   });
 
+  // Keyboard shortcuts for search
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const firstItem = document.querySelector('#user-dropdown .user-dropdown-item:not(.d-none)');
+      if (firstItem) firstItem.click();
+    }
+    if (e.key === 'Escape') {
+      document.getElementById('user-dropdown').classList.add('d-none');
+      searchInput.blur();
+    }
+  });
+
   // Close dropdown on outside click
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#user-search') && !e.target.closest('#user-dropdown')) {
@@ -184,7 +238,10 @@ export async function renderWorkLog() {
 function renderUserChips() {
   return selectedUsers.map((user, i) => `
     <span class="user-chip" data-index="${i}">
-      <span class="avatar avatar-sm wl-chip-avatar">${user.displayName.charAt(0).toUpperCase()}</span>
+      ${user.avatarUrl
+        ? `<img src="${user.avatarUrl}" alt="" class="avatar avatar-sm wl-chip-avatar wl-avatar-img" />`
+        : `<span class="avatar avatar-sm wl-chip-avatar">${user.displayName.charAt(0).toUpperCase()}</span>`
+      }
       <span>${user.displayName}</span>
       <button class="user-chip-remove" data-index="${i}" aria-label="Remove ${user.displayName}">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -205,8 +262,25 @@ function refreshUserChips() {
       const idx = parseInt(btn.dataset.index);
       selectedUsers.splice(idx, 1);
       refreshUserChips();
+      scheduleRegenerate();
     });
   });
+}
+
+function scheduleRegenerate() {
+  clearTimeout(regenTimeout);
+  regenTimeout = setTimeout(() => {
+    if (selectedUsers.length > 0) {
+      generateWorklogReport();
+    } else {
+      // Clear results when no users
+      const resultsDiv = document.getElementById('worklog-results');
+      if (resultsDiv) resultsDiv.innerHTML = '';
+      const exportBtn = document.getElementById('export-excel-btn');
+      if (exportBtn) exportBtn.classList.add('d-none');
+      lastReportData = null;
+    }
+  }, 500);
 }
 
 async function searchAndShowUsers(query) {
@@ -284,6 +358,7 @@ async function searchAndShowUsers(query) {
           refreshUserChips();
           document.getElementById('user-search').value = '';
           dropdown.classList.add('d-none');
+          scheduleRegenerate();
         }
       });
     });
@@ -304,6 +379,7 @@ async function searchAndShowUsers(query) {
         refreshUserChips();
         document.getElementById('user-search').value = '';
         dropdown.classList.add('d-none');
+        scheduleRegenerate();
       });
     });
   } catch (err) {
@@ -331,7 +407,7 @@ async function generateWorklogReport() {
   resultsDiv.innerHTML = `
     <div class="loading-screen">
       <div class="spinner spinner-lg"></div>
-      <p>Fetching work logs...</p>
+      <p class="wl-loading-progress">Fetching work logs...</p>
     </div>
   `;
 
@@ -363,16 +439,19 @@ async function generateWorklogReport() {
       return;
     }
 
-    // Fetch worklogs for each issue
+    // Fetch worklogs in parallel batches of 5
     const issueWorklogs = [];
-    for (const issue of issues) {
-      try {
+    const batchSize = 5;
+    for (let i = 0; i < issues.length; i += batchSize) {
+      const batch = issues.slice(i, i + batchSize);
+      // Update progress
+      const progressEl = document.querySelector('.wl-loading-progress');
+      if (progressEl) progressEl.textContent = `Fetching worklogs (${Math.min(i + batchSize, issues.length)}/${issues.length} issues)...`;
+      const results = await Promise.allSettled(batch.map(async (issue) => {
         const worklogs = await getIssueWorklogs(issue.key, issue._site);
-        // Filter worklogs to selected users and date range
         const filtered = worklogs.filter(wl => {
           const wlDate = wl.started?.substring(0, 10);
           const isInDateRange = wlDate >= dateFrom && wlDate <= dateTo;
-          // Check if the author matches any selected user (by accountId or via siteAccounts)
           const authorId = wl.author?.accountId;
           const isSelectedUser = selectedUsers.some(u => {
             if (u.accountId === authorId) return true;
@@ -381,17 +460,19 @@ async function generateWorklogReport() {
           });
           return isInDateRange && isSelectedUser;
         });
-
         if (filtered.length > 0) {
-          issueWorklogs.push({
+          return {
             issue,
             worklogs: filtered,
             totalSeconds: filtered.reduce((sum, wl) => sum + (wl.timeSpentSeconds || 0), 0),
-          });
+          };
         }
-      } catch {
-        // Skip issues where worklog fetch fails
-      }
+        return null;
+      }));
+      results.forEach(r => {
+        if (r.status === 'fulfilled' && r.value) issueWorklogs.push(r.value);
+        else if (r.status === 'rejected') console.error('Worklog fetch error:', r.reason);
+      });
     }
 
     if (!issueWorklogs.length) {
@@ -447,7 +528,7 @@ async function generateWorklogReport() {
     const rangeStart = new Date(dateFrom + 'T00:00:00');
     const rangeEnd = new Date(dateTo + 'T00:00:00');
     for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
-      allDaysInRange.push(d.toISOString().split('T')[0]);
+      allDaysInRange.push(formatDate(d));
     }
 
     const creds = getCredentials();
@@ -487,13 +568,14 @@ async function generateWorklogReport() {
     // Build tab bar — users first, "All Users" last
     const tabIds = [...selectedUsers.map(u => u.accountId), 'all'];
     const tabLabels = [...selectedUsers.map(u => u.displayName), 'All Users'];
+    const tabAvatars = [...selectedUsers.map(u => u.avatarUrl || ''), ''];
 
     resultsDiv.innerHTML = `
       <!-- Tab Bar -->
       <div class="wl-tabs" id="wl-tabs">
         ${tabIds.map((id, i) => `
           <button class="wl-tab ${i === 0 ? 'active' : ''}" data-tab="${id}">
-            ${id === 'all' ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` : `<span class="avatar avatar-sm wl-chip-avatar flex-shrink-0">${tabLabels[i].charAt(0).toUpperCase()}</span>`}
+            ${id === 'all' ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>` : (tabAvatars[i] ? `<img src="${tabAvatars[i]}" alt="" class="avatar avatar-sm wl-chip-avatar wl-avatar-img flex-shrink-0" />` : `<span class="avatar avatar-sm wl-chip-avatar flex-shrink-0">${tabLabels[i].charAt(0).toUpperCase()}</span>`)}
             <span>${tabLabels[i]}</span>
           </button>
         `).join('')}
@@ -531,6 +613,45 @@ async function generateWorklogReport() {
 
     // Initialize calendars for each user tab
     initCalendars(perUserData, issueWorklogs, jiraUrl);
+
+    // Breakdown toggle (Calendar ↔ Tasks)
+    resultsDiv.addEventListener('click', (e) => {
+      const btn = e.target.closest('.wl-breakdown-btn');
+      if (!btn) return;
+      const view = btn.dataset.view;
+      const tabId = btn.dataset.tab;
+      const container = document.getElementById(`user-daily-${tabId}`);
+      if (!container) return;
+
+      // Toggle active button
+      container.querySelectorAll('.wl-breakdown-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+      // Toggle panels
+      container.querySelectorAll('.wl-breakdown-panel').forEach(p => p.classList.toggle('active', p.dataset.breakdown === view));
+      // Show/hide calendar controls
+      const calControls = container.querySelector('.wl-panel-controls');
+      if (calControls) calControls.style.display = view === 'calendar' ? '' : 'none';
+
+      // Lazy render task list on first activation
+      if (view === 'tasks') {
+        const tasksPanel = container.querySelector('[data-breakdown="tasks"]');
+        if (tasksPanel && !tasksPanel.dataset.rendered) {
+          tasksPanel.innerHTML = renderTaskList(perUserData[tabId], jiraUrl, tabId);
+          tasksPanel.dataset.rendered = 'true';
+          // Attach accordion handlers
+          tasksPanel.querySelectorAll('.wl-accordion-header').forEach(header => {
+            header.addEventListener('click', () => {
+              const idx = header.dataset.idx;
+              const body = document.getElementById(`wl-body-${idx}`);
+              if (!body) return;
+              const isOpen = !body.classList.contains('d-none');
+              body.classList.toggle('d-none', isOpen);
+              header.setAttribute('aria-expanded', !isOpen);
+              header.classList.toggle('expanded', !isOpen);
+            });
+          });
+        }
+      }
+    });
 
     // Initialize timesheet weekly navigation
     timesheetState = { allDays: allDaysInRange, userMatrix: userDayMatrix, weekIndex: 0, jiraUrl };
@@ -570,7 +691,7 @@ async function generateWorklogReport() {
     });
     TASK_DETAILS_DISABLED */
 
-    // Day modal close
+    // Day modal close + Escape key
     resultsDiv.addEventListener('click', (e) => {
       const closeBtn = e.target.closest('.wl-day-modal-close');
       const overlay = e.target.closest('.wl-day-modal-overlay');
@@ -579,6 +700,11 @@ async function generateWorklogReport() {
         if (modal) modal.classList.remove('wl-modal-visible');
       } else if (overlay && !e.target.closest('.wl-day-modal')) {
         overlay.classList.remove('wl-modal-visible');
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.wl-day-modal-overlay.wl-modal-visible').forEach(m => m.classList.remove('wl-modal-visible'));
       }
     });
 
@@ -607,7 +733,8 @@ function renderAllUsersPanel(grandTotalSeconds, issueWorklogs, sortedDays, allDa
       <div class="stat-card">
         <div class="stat-card-label">Total Time Logged</div>
         <div class="stat-card-value">${formatDuration(grandTotalSeconds)}</div>
-        <div class="stat-card-secondary">of ${totalExpectedHours}h expected</div>
+        <div class="stat-card-secondary">of ${totalExpectedHours}h expected (${selectedUsers.length} user${selectedUsers.length !== 1 ? 's' : ''})</div>
+        ${renderDiffBadge(grandTotalSeconds, totalExpectedHours)}
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -618,8 +745,9 @@ function renderAllUsersPanel(grandTotalSeconds, issueWorklogs, sortedDays, allDa
         <div class="stat-card-value">${totalEntries}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-label">Avg / Day</div>
+        <div class="stat-card-label">Avg / Logged Day</div>
         <div class="stat-card-value">${formatDuration(Math.round(grandTotalSeconds / Math.max(sortedDays.length, 1)))}</div>
+        <div class="stat-card-secondary">${sortedDays.length} day${sortedDays.length !== 1 ? 's' : ''} with logs</div>
       </div>
     </div>
 
@@ -676,8 +804,8 @@ function renderTimesheetWeek() {
       const seconds = userData.days[day] || 0;
       rowTotal += seconds;
       const hours = seconds / 3600;
-      const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
-      let cellClass = isWeekend ? 'wl-weekend' : '';
+      const isNonWorkday = !isWorkday(day);
+      let cellClass = isNonWorkday ? 'wl-weekend' : '';
       if (seconds > 0) {
         if (hours >= 8) cellClass += ' wl-cell-full';
         else if (hours >= 4) cellClass += ' wl-cell-half';
@@ -702,8 +830,8 @@ function renderTimesheetWeek() {
 
   const footerCells = weekDays.map(day => {
     const colTotal = Object.values(userMatrix).reduce((s, u) => s + (u.days[day] || 0), 0);
-    const isWeekend = new Date(day + 'T00:00:00').getDay() % 6 === 0;
-    return `<td class="wl-matrix-cell ${isWeekend ? 'wl-weekend' : ''} text-semibold">
+    const isNonWorkday = !isWorkday(day);
+    return `<td class="wl-matrix-cell ${isNonWorkday ? 'wl-weekend' : ''} text-semibold">
       ${colTotal > 0 ? formatDurationCompact(colTotal) : '—'}
     </td>`;
   }).join('');
@@ -716,8 +844,8 @@ function renderTimesheetWeek() {
             <th class="wl-matrix-user-col">Team Member</th>
             ${weekDays.map(day => {
     const d = new Date(day + 'T00:00:00');
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-    return `<th class="wl-matrix-day-col ${isWeekend ? 'wl-weekend' : ''}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}">
+    const isNonWorkday = !isWorkday(day);
+    return `<th class="wl-matrix-day-col ${isNonWorkday ? 'wl-weekend' : ''}" title="${d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}">
                 <div class="wl-day-header">
                   <span class="wl-day-name">${d.toLocaleDateString('en-US', { weekday: 'short' })}</span>
                   <span class="wl-day-date">${d.getDate()}</span>
@@ -759,6 +887,7 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
         <div class="stat-card-label">Time Logged</div>
         <div class="stat-card-value">${formatDuration(totalSeconds)}</div>
         <div class="stat-card-secondary">of ${expectedHours * countWorkdaysInRange(dateFrom, dateTo)}h expected</div>
+        ${renderDiffBadge(totalSeconds, expectedHours * countWorkdaysInRange(dateFrom, dateTo))}
       </div>
       <div class="stat-card">
         <div class="stat-card-label">Issues Worked On</div>
@@ -769,15 +898,27 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
         <div class="stat-card-value">${totalEntries}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-label">Avg / Day</div>
+        <div class="stat-card-label">Avg / Logged Day</div>
         <div class="stat-card-value">${formatDuration(Math.round(totalSeconds / Math.max(daysWithLog.length, 1)))}</div>
+        <div class="stat-card-secondary">${daysWithLog.length} day${daysWithLog.length !== 1 ? 's' : ''} with logs</div>
       </div>
     </div>
 
-    <!-- Daily Calendar -->
+    <!-- Daily Calendar / Tasks Toggle -->
     <div class="card mb-300" id="user-daily-${tabId}">
       <div class="wl-panel-header">
-        <h3 class="text-heading-small m-0">Daily Breakdown</h3>
+        <div class="wl-panel-header-left">
+          <div class="wl-breakdown-toggle">
+            <button class="wl-breakdown-btn active" data-view="calendar" data-tab="${tabId}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              Calendar
+            </button>
+            <button class="wl-breakdown-btn" data-view="tasks" data-tab="${tabId}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              Tasks
+            </button>
+          </div>
+        </div>
         <div class="wl-panel-controls">
           <div class="wl-cal-nav d-none" id="cal-nav-${tabId}">
             <button class="btn btn-subtle btn-icon-only wl-cal-prev wl-nav-btn" data-tab="${tabId}" title="Previous">
@@ -789,19 +930,26 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
             </button>
           </div>
           <span class="wl-cal-label-month text-subtle" id="cal-label-month-${tabId}"></span>
-          <div class="wl-cal-view-toggle">
+          <div class="wl-cal-view-toggle" id="cal-view-toggle-${tabId}">
             <button class="wl-cal-view-btn active" data-view="month" data-tab="${tabId}">Month</button>
             <button class="wl-cal-view-btn" data-view="week" data-tab="${tabId}">Week</button>
           </div>
         </div>
       </div>
-      <div class="wl-calendar-grid" id="cal-grid-${tabId}" data-days='${JSON.stringify(days)}' data-expected="${expectedHours}"></div>
-      <div class="wl-cal-legend mt-150">
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-success"></span> ≥ ${expectedHours}h</span>
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-warning"></span> &lt; ${expectedHours}h</span>
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-danger"></span> No log (workday)</span>
-        <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-neutral"></span> Holiday</span>
+
+      <!-- Calendar View -->
+      <div class="wl-breakdown-panel active" data-breakdown="calendar" data-tab="${tabId}">
+        <div class="wl-calendar-grid" id="cal-grid-${tabId}" data-days='${JSON.stringify(days)}' data-expected="${expectedHours}"></div>
+        <div class="wl-cal-legend mt-150">
+          <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-success"></span> ≥ ${expectedHours}h</span>
+          <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-warning"></span> &lt; ${expectedHours}h</span>
+          <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-danger"></span> No log (workday)</span>
+          <span class="wl-cal-legend-item"><span class="wl-cal-legend-dot wl-legend-dot-neutral"></span> Holiday</span>
+        </div>
       </div>
+
+      <!-- Tasks View (lazy rendered) -->
+      <div class="wl-breakdown-panel" data-breakdown="tasks" data-tab="${tabId}"></div>
     </div>
 
     <!-- Day Detail Modal (hidden) -->
@@ -816,7 +964,6 @@ function renderUserPanel(userData, allDaysInRange, jiraUrl, tabId) {
         <div id="day-modal-content-${tabId}"></div>
       </div>
     </div>
-    ${''}${/* TASK_DETAILS_DISABLED — Task Details section removed for performance. Search TASK_DETAILS_DISABLED to re-enable. */ ''}
   `;
 }
 
@@ -881,9 +1028,11 @@ TASK_DETAILS_DISABLED */
 const calendarStates = {};
 
 function initCalendars(perUserData, issueWorklogs, jiraUrl) {
-  // Set initial calendar month/year from dateTo (end of selected range)
-  // This ensures "This Month: March" shows March, not February
+  // Set initial calendar month/year from dateFrom (start of selected range)
+  const rangeStart = new Date(dateFrom + 'T00:00:00');
   const rangeEnd = new Date(dateTo + 'T00:00:00');
+  // Determine if this is a custom multi-month range
+  const isMultiMonth = rangeStart.getMonth() !== rangeEnd.getMonth() || rangeStart.getFullYear() !== rangeEnd.getFullYear();
 
   Object.keys(perUserData).forEach(tabId => {
     const gridEl = document.getElementById(`cal-grid-${tabId}`);
@@ -894,14 +1043,15 @@ function initCalendars(perUserData, issueWorklogs, jiraUrl) {
 
     calendarStates[tabId] = {
       view: 'month',
-      year: rangeEnd.getFullYear(),
-      month: rangeEnd.getMonth(),
-      weekStart: getWeekStart(new Date(dateFrom + 'T00:00:00')),
+      year: rangeStart.getFullYear(),
+      month: rangeStart.getMonth(),
+      weekStart: getWeekStart(rangeStart),
       days,
       expected,
       userData: perUserData[tabId],
       issueWorklogs,
       jiraUrl,
+      isMultiMonth,
     };
 
     renderCalendarGrid(tabId);
@@ -930,9 +1080,9 @@ function renderCalendarGrid(tabId) {
   const { view, year, month, weekStart, days, expected } = state;
   const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  // Toggle nav visibility: show only in week view
-  if (navEl) navEl.classList.toggle('d-none', view === 'month');
-  if (labelMonthEl) labelMonthEl.classList.toggle('d-none', view === 'week');
+  // Toggle nav visibility: show in week view, or in month view if multi-month
+  if (navEl) navEl.classList.toggle('d-none', view === 'month' && !state.isMultiMonth);
+  if (labelMonthEl) labelMonthEl.classList.toggle('d-none', view === 'week' || state.isMultiMonth);
 
   let cells = '';
   let datesToRender = [];
@@ -1086,7 +1236,7 @@ async function loadCalendarData(tabId) {
             newDays[day] += wl.timeSpentSeconds || 0;
           });
         }
-      } catch { /* skip */ }
+      } catch (fetchErr) { console.error('Calendar data fetch error:', fetchErr); }
     }
 
     // Merge new days into existing state
@@ -1127,28 +1277,48 @@ function attachCalendarNavHandlers(tabId) {
 
   container.querySelector('.wl-cal-prev')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
-    // Week nav only — clamp within selected date range
     if (state.view === 'week') {
+      // Week nav — clamp within selected date range
       const ws = new Date(state.weekStart);
       ws.setDate(ws.getDate() - 7);
-      // Don't go before dateFrom
       const rangeStart = new Date(dateFrom + 'T00:00:00');
       if (ws < rangeStart) return;
       state.weekStart = ws;
+      await loadCalendarData(tabId);
+    } else if (state.view === 'month' && state.isMultiMonth) {
+      // Month nav for custom multi-month ranges
+      state.month--;
+      if (state.month < 0) { state.month = 11; state.year--; }
+      // Clamp: don't go before dateFrom month
+      const fromDate = new Date(dateFrom + 'T00:00:00');
+      if (state.year < fromDate.getFullYear() || (state.year === fromDate.getFullYear() && state.month < fromDate.getMonth())) {
+        state.month = fromDate.getMonth(); state.year = fromDate.getFullYear();
+        return;
+      }
       await loadCalendarData(tabId);
     }
   });
 
   container.querySelector('.wl-cal-next')?.addEventListener('click', async () => {
     const state = calendarStates[tabId];
-    // Week nav only — clamp within selected date range
     if (state.view === 'week') {
+      // Week nav — clamp within selected date range
       const ws = new Date(state.weekStart);
       ws.setDate(ws.getDate() + 7);
-      // Don't go beyond dateTo
       const rangeEnd = new Date(dateTo + 'T00:00:00');
       if (ws > rangeEnd) return;
       state.weekStart = ws;
+      await loadCalendarData(tabId);
+    } else if (state.view === 'month' && state.isMultiMonth) {
+      // Month nav for custom multi-month ranges
+      state.month++;
+      if (state.month > 11) { state.month = 0; state.year++; }
+      // Clamp: don't go beyond dateTo month
+      const toDate = new Date(dateTo + 'T00:00:00');
+      if (state.year > toDate.getFullYear() || (state.year === toDate.getFullYear() && state.month > toDate.getMonth())) {
+        state.month = toDate.getMonth(); state.year = toDate.getFullYear();
+        return;
+      }
       await loadCalendarData(tabId);
     }
   });
@@ -1165,8 +1335,8 @@ function attachCalendarNavHandlers(tabId) {
       // Toggle nav visibility
       const navEl = document.getElementById(`cal-nav-${tabId}`);
       const labelMonthEl = document.getElementById(`cal-label-month-${tabId}`);
-      if (navEl) navEl.classList.toggle('d-none', state.view === 'month');
-      if (labelMonthEl) labelMonthEl.classList.toggle('d-none', state.view === 'week');
+      if (navEl) navEl.classList.toggle('d-none', state.view === 'month' && !state.isMultiMonth);
+      if (labelMonthEl) labelMonthEl.classList.toggle('d-none', state.view === 'week' || state.isMultiMonth);
       renderCalendarGrid(tabId);
     });
   });
@@ -1215,7 +1385,7 @@ function showDayModal(tabId, dateStr) {
     const multiSite = siteGroups.size > 1;
 
     contentEl.innerHTML = `
-      <div class="jql-results-summary">
+      <div class="wl-day-modal-summary">
         Total: <strong>${formatDuration(totalDaySec)}</strong> across ${dayTasks.length} task${dayTasks.length !== 1 ? 's' : ''}
       </div>
       ${Array.from(siteGroups.values()).map(group => `
@@ -1256,45 +1426,13 @@ function filterTasks(tabId) {
 TASK_DETAILS_DISABLED */
 
 
-function generateMonthOptions() {
-  const now = new Date();
+function generateYearOptions() {
+  const currentYear = new Date().getFullYear();
   const options = [];
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    options.push(`<option value="${value}">${label}</option>`);
+  for (let y = currentYear; y >= currentYear - 5; y--) {
+    options.push(`<option value="${y}">${y}</option>`);
   }
   return options.join('');
-}
-
-function applyDatePreset(preset) {
-  const now = new Date();
-  if (preset === 'this-week') {
-    const dayOfWeek = now.getDay();
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    monday.setHours(0, 0, 0, 0);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    dateFrom = formatDate(monday);
-    dateTo = formatDate(sunday);
-  } else if (preset === 'last-week') {
-    const dayOfWeek = now.getDay();
-    const thisMonday = new Date(now);
-    thisMonday.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-    const lastMonday = new Date(thisMonday);
-    lastMonday.setDate(thisMonday.getDate() - 7);
-    const lastSunday = new Date(lastMonday);
-    lastSunday.setDate(lastMonday.getDate() + 6);
-    dateFrom = formatDate(lastMonday);
-    dateTo = formatDate(lastSunday);
-  } else {
-    // Monthly: value format is "YYYY-MM"
-    const [year, month] = preset.split('-').map(Number);
-    dateFrom = formatDate(new Date(year, month - 1, 1));
-    dateTo = formatDate(new Date(year, month, 0));
-  }
 }
 
 /* ── Excel Export ─────────────────────────────────── */
@@ -1503,8 +1641,90 @@ async function exportToExcel() {
 
 /* ── Helpers ──────────────────────────────────────── */
 
+function renderDiffBadge(actualSeconds, expectedHours) {
+  if (expectedHours <= 0) return '';
+  const actualHours = actualSeconds / 3600;
+  const diffPct = Math.round(((actualHours - expectedHours) / expectedHours) * 100);
+  const cls = diffPct >= 0 ? 'positive' : 'negative';
+  const sign = diffPct >= 0 ? '+' : '';
+  const label = diffPct >= 0 ? 'above target' : 'below target';
+  return `<div class="stat-card-change ${cls}">${sign}${diffPct}% ${label}</div>`;
+}
+
+function renderTaskList(userData, jiraUrl, tabId) {
+  if (!userData || userData.issues.length === 0) {
+    return '<div class="settings-empty-state">No tasks to display.</div>';
+  }
+
+  const { issues } = userData;
+  // Group by site
+  const siteGroups = new Map();
+  issues.sort((a, b) => b.totalSeconds - a.totalSeconds).forEach(iw => {
+    const siteName = iw.issue._site?.name || 'Default';
+    const siteUrl = iw.issue._site?.url || jiraUrl;
+    const key = siteUrl;
+    if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
+    siteGroups.get(key).items.push(iw);
+  });
+
+  const multiSite = siteGroups.size > 1;
+  let globalIdx = 0;
+
+  const content = Array.from(siteGroups.values()).map(group => {
+    const header = multiSite ? `<div class="wl-site-group-title">${group.siteName}</div>` : '';
+    const items = group.items.map(iw => {
+      const idx = globalIdx++;
+      const bodyId = `wl-body-${tabId}-task-${idx}`;
+      return `
+        <div class="wl-accordion-item">
+          <button class="wl-accordion-header" data-idx="${tabId}-task-${idx}" aria-expanded="false">
+            <div class="wl-accordion-left">
+              <svg class="wl-accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <a href="${group.siteUrl}/browse/${iw.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${iw.issue.key}</a>
+              <span class="wl-issue-summary">${iw.issue.fields?.summary || ''}</span>
+            </div>
+            <div class="wl-accordion-right">
+              <span class="lozenge ${getStatusLozengeClass(iw.issue.fields?.status?.statusCategory?.key)} flex-shrink-0">${iw.issue.fields?.status?.name || ''}</span>
+              <span class="lozenge lozenge-default flex-shrink-0">${iw.issue.fields?.project?.name || iw.issue.fields?.project?.key || ''}</span>
+              <span class="wl-time-badge">${formatDuration(iw.totalSeconds)}</span>
+            </div>
+          </button>
+          <div class="wl-accordion-body d-none" id="${bodyId}">
+            <table class="table wl-table-no-margin">
+              <thead><tr><th>Date</th><th>Time Spent</th><th>Comment</th></tr></thead>
+              <tbody>
+                ${iw.worklogs.sort((a, b) => new Date(a.started) - new Date(b.started)).map(wl => `
+                  <tr>
+                    <td class="wl-worklog-date-cell">${wl.started ? new Date(wl.started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
+                    <td class="text-medium">${wl.timeSpent || formatDuration(wl.timeSpentSeconds || 0)}</td>
+                    <td class="wl-worklog-comment-cell">${extractComment(wl.comment) || '—'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }).join('');
+    return header + items;
+  }).join('');
+
+  return `
+    <div class="wl-task-list-summary mb-150">
+      <span class="text-subtle">${issues.length} task${issues.length !== 1 ? 's' : ''} · ${issues.reduce((s, iw) => s + iw.worklogs.length, 0)} entries · ${formatDuration(userData.totalSeconds)} total</span>
+    </div>
+    <div class="wl-task-list" data-tab="${tabId}">
+      ${content}
+    </div>
+  `;
+}
+
+
 function formatDate(date) {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
 function countWorkdaysInRange(from, to) {
@@ -1512,7 +1732,7 @@ function countWorkdaysInRange(from, to) {
   const d = new Date(from + 'T00:00:00');
   const end = new Date(to + 'T00:00:00');
   while (d <= end) {
-    if (isWorkday(d.toISOString().split('T')[0])) count++;
+    if (isWorkday(formatDate(d))) count++;
     d.setDate(d.getDate() + 1);
   }
   return count;
@@ -2036,6 +2256,104 @@ function injectWorklogStyles() {
       align-items: center;
       justify-content: space-between;
       margin-bottom: var(--ds-space-200);
+    }
+
+    /* Avatar images */
+    .wl-avatar-img {
+      width: 24px;
+      height: 24px;
+      border-radius: var(--ds-radius-round);
+      object-fit: cover;
+    }
+
+    /* Panel header layout */
+    .wl-panel-header-left {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-150);
+    }
+
+    /* Breakdown toggle (Calendar | Tasks) */
+    .wl-breakdown-toggle {
+      display: flex;
+      gap: 2px;
+      background: var(--ds-background-neutral);
+      border-radius: var(--ds-radius-100);
+      padding: 2px;
+    }
+    .wl-breakdown-btn {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-050);
+      padding: var(--ds-space-050) var(--ds-space-100);
+      border: none;
+      background: none;
+      border-radius: var(--ds-radius-050);
+      font: var(--ds-font-body-small);
+      font-weight: var(--ds-font-weight-medium);
+      color: var(--ds-text-subtle);
+      cursor: pointer;
+      transition: all var(--ds-duration-fast) var(--ds-easing-standard);
+      white-space: nowrap;
+    }
+    .wl-breakdown-btn:hover {
+      color: var(--ds-text);
+    }
+    .wl-breakdown-btn.active {
+      background: var(--ds-surface);
+      color: var(--ds-text);
+      box-shadow: var(--ds-shadow-raised);
+    }
+    .wl-breakdown-panel {
+      display: none;
+    }
+    .wl-breakdown-panel.active {
+      display: block;
+    }
+
+    /* Task list summary */
+    .wl-task-list-summary {
+      padding: var(--ds-space-100) 0;
+      border-bottom: 1px solid var(--ds-border);
+    }
+
+    /* Day modal summary */
+    .wl-day-modal-summary {
+      padding: var(--ds-space-100) var(--ds-space-150);
+      background: var(--ds-background-neutral);
+      border-radius: var(--ds-radius-100);
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtle);
+      margin-bottom: var(--ds-space-200);
+    }
+
+    /* Day modal worklog entries */
+    .wl-day-task-worklogs {
+      padding: var(--ds-space-075) var(--ds-space-150);
+      border-top: 1px solid var(--ds-border);
+      background: var(--ds-surface-sunken);
+      border-radius: 0 0 var(--ds-radius-100) var(--ds-radius-100);
+    }
+    .wl-day-worklog-entry {
+      display: flex;
+      gap: var(--ds-space-100);
+      padding: var(--ds-space-050) 0;
+      font: var(--ds-font-body-small);
+    }
+    .wl-day-worklog-entry + .wl-day-worklog-entry {
+      border-top: 1px solid var(--ds-border);
+    }
+    .wl-day-worklog-time {
+      flex-shrink: 0;
+      font-weight: var(--ds-font-weight-medium);
+      color: var(--ds-text);
+      min-width: 48px;
+    }
+    .wl-day-worklog-comment {
+      color: var(--ds-text-subtle);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
   `;
   document.head.appendChild(style);
