@@ -62,7 +62,7 @@ export async function renderWorkLog() {
         <div class="wl-pill-wrapper" id="wl-users-pill-wrapper">
           <button class="wl-filter-pill" id="wl-users-pill" type="button">
             <span id="wl-users-pill-label">Users</span>
-            <svg class="wl-pill-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg class="wl-pill-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <!-- Users popover -->
           <div class="wl-popover d-none" id="wl-users-popover">
@@ -80,7 +80,7 @@ export async function renderWorkLog() {
         <div class="wl-pill-wrapper" id="wl-date-pill-wrapper">
           <button class="wl-filter-pill" id="wl-date-pill" type="button">
             <span id="wl-date-pill-label">March 2026</span>
-            <svg class="wl-pill-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg class="wl-pill-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <!-- Date popover -->
           <div class="wl-popover d-none" id="wl-date-popover">
@@ -141,13 +141,10 @@ export async function renderWorkLog() {
     const label = document.getElementById('wl-users-pill-label');
     if (selectedUsers.length === 0) {
       label.innerHTML = 'Users';
-      usersPill.classList.remove('wl-pill-active');
     } else if (selectedUsers.length === 1) {
       label.innerHTML = selectedUsers[0].displayName;
-      usersPill.classList.add('wl-pill-active');
     } else {
       label.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-badge">+${selectedUsers.length - 1}</span>`;
-      usersPill.classList.add('wl-pill-active');
     }
   }
 
@@ -187,6 +184,8 @@ export async function renderWorkLog() {
   function closeAllPopovers() {
     usersPopover.classList.add('d-none');
     datePopover.classList.add('d-none');
+    usersPill.classList.remove('wl-pill-active');
+    datePill.classList.remove('wl-pill-active');
   }
 
   usersPill.addEventListener('click', (e) => {
@@ -195,6 +194,7 @@ export async function renderWorkLog() {
     closeAllPopovers();
     if (!isOpen) {
       usersPopover.classList.remove('d-none');
+      usersPill.classList.add('wl-pill-active');
       renderSelectedUsersList();
       setTimeout(() => document.getElementById('user-search')?.focus(), 50);
     }
@@ -271,6 +271,7 @@ export async function renderWorkLog() {
     closeAllPopovers();
     if (!isOpen) {
       datePopover.classList.remove('d-none');
+      datePill.classList.add('wl-pill-active');
       renderMonthGrid();
     }
   });
@@ -315,9 +316,11 @@ export async function renderWorkLog() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#wl-users-pill-wrapper')) {
       usersPopover.classList.add('d-none');
+      usersPill.classList.remove('wl-pill-active');
     }
     if (!e.target.closest('#wl-date-pill-wrapper')) {
       datePopover.classList.add('d-none');
+      datePill.classList.remove('wl-pill-active');
     }
   });
 
@@ -340,13 +343,10 @@ function refreshUserChips() {
   if (pillLabel) {
     if (selectedUsers.length === 0) {
       pillLabel.innerHTML = 'Users';
-      document.getElementById('wl-users-pill')?.classList.remove('wl-pill-active');
     } else if (selectedUsers.length === 1) {
       pillLabel.innerHTML = selectedUsers[0].displayName;
-      document.getElementById('wl-users-pill')?.classList.add('wl-pill-active');
     } else {
       pillLabel.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-badge">+${selectedUsers.length - 1}</span>`;
-      document.getElementById('wl-users-pill')?.classList.add('wl-pill-active');
     }
   }
   // Re-render selected list in popover if open
@@ -1899,22 +1899,23 @@ function injectWorklogStyles() {
     .wl-filter-pill {
       display: inline-flex;
       align-items: center;
-      gap: var(--ds-space-050);
-      height: 32px;
-      padding: 0 8px;
+      gap: 6px;
+      min-height: 32px;
+      padding: 0 12px;
       background: transparent;
-      border: 2px solid var(--ds-border);
-      border-radius: 3px;
-      font: var(--ds-font-body-small);
-      font-weight: var(--ds-font-weight-medium);
+      border: 1px solid var(--ds-border);
+      border-radius: 4px;
+      font-family: var(--ds-font-family-body);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 20px;
       color: var(--ds-text-subtle);
       cursor: pointer;
       white-space: nowrap;
-      transition: all var(--ds-duration-fast) var(--ds-easing-standard);
+      transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
     }
     .wl-filter-pill:hover {
       background: var(--ds-background-neutral-subtle-hovered);
-      border-color: var(--ds-border);
       color: var(--ds-text);
     }
     .wl-filter-pill.wl-pill-active {
@@ -1927,13 +1928,12 @@ function injectWorklogStyles() {
     }
     .wl-pill-chevron {
       flex-shrink: 0;
-      width: 16px;
-      height: 16px;
-      opacity: 0.6;
-      transition: transform var(--ds-duration-fast) var(--ds-easing-standard);
+      width: 12px;
+      height: 12px;
+      opacity: 0.7;
     }
     .wl-filter-pill.wl-pill-active .wl-pill-chevron {
-      opacity: 0.8;
+      opacity: 1;
     }
     .wl-pill-badge {
       display: inline-flex;
