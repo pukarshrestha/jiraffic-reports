@@ -61,8 +61,8 @@ export async function renderWorkLog() {
         <!-- Users pill -->
         <div class="wl-pill-wrapper" id="wl-users-pill-wrapper">
           <button class="wl-filter-pill" id="wl-users-pill" type="button">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span id="wl-users-pill-label">Users</span>
+            <svg class="wl-pill-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <!-- Users popover -->
           <div class="wl-popover d-none" id="wl-users-popover">
@@ -79,8 +79,8 @@ export async function renderWorkLog() {
         <!-- Date pill -->
         <div class="wl-pill-wrapper" id="wl-date-pill-wrapper">
           <button class="wl-filter-pill" id="wl-date-pill" type="button">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span id="wl-date-pill-label">March 2026</span>
+            <svg class="wl-pill-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <!-- Date popover -->
           <div class="wl-popover d-none" id="wl-date-popover">
@@ -140,13 +140,13 @@ export async function renderWorkLog() {
   function updateUsersPillLabel() {
     const label = document.getElementById('wl-users-pill-label');
     if (selectedUsers.length === 0) {
-      label.textContent = 'Users';
+      label.innerHTML = 'Users';
       usersPill.classList.remove('wl-pill-active');
     } else if (selectedUsers.length === 1) {
-      label.textContent = selectedUsers[0].displayName;
+      label.innerHTML = selectedUsers[0].displayName;
       usersPill.classList.add('wl-pill-active');
     } else {
-      label.textContent = `${selectedUsers[0].displayName} +${selectedUsers.length - 1}`;
+      label.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-badge">+${selectedUsers.length - 1}</span>`;
       usersPill.classList.add('wl-pill-active');
     }
   }
@@ -339,13 +339,13 @@ function refreshUserChips() {
   const pillLabel = document.getElementById('wl-users-pill-label');
   if (pillLabel) {
     if (selectedUsers.length === 0) {
-      pillLabel.textContent = 'Users';
+      pillLabel.innerHTML = 'Users';
       document.getElementById('wl-users-pill')?.classList.remove('wl-pill-active');
     } else if (selectedUsers.length === 1) {
-      pillLabel.textContent = selectedUsers[0].displayName;
+      pillLabel.innerHTML = selectedUsers[0].displayName;
       document.getElementById('wl-users-pill')?.classList.add('wl-pill-active');
     } else {
-      pillLabel.textContent = `${selectedUsers[0].displayName} +${selectedUsers.length - 1}`;
+      pillLabel.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-badge">+${selectedUsers.length - 1}</span>`;
       document.getElementById('wl-users-pill')?.classList.add('wl-pill-active');
     }
   }
@@ -1899,11 +1899,12 @@ function injectWorklogStyles() {
     .wl-filter-pill {
       display: inline-flex;
       align-items: center;
-      gap: var(--ds-space-075);
-      padding: 6px 12px;
-      background: var(--ds-background-neutral);
-      border: 1px solid var(--ds-border);
-      border-radius: var(--ds-radius-round);
+      gap: var(--ds-space-050);
+      height: 32px;
+      padding: 0 8px;
+      background: transparent;
+      border: 2px solid var(--ds-border);
+      border-radius: 3px;
       font: var(--ds-font-body-small);
       font-weight: var(--ds-font-weight-medium);
       color: var(--ds-text-subtle);
@@ -1912,17 +1913,42 @@ function injectWorklogStyles() {
       transition: all var(--ds-duration-fast) var(--ds-easing-standard);
     }
     .wl-filter-pill:hover {
-      background: var(--ds-background-neutral-hovered);
-      border-color: var(--ds-border-bold);
+      background: var(--ds-background-neutral-subtle-hovered);
+      border-color: var(--ds-border);
       color: var(--ds-text);
     }
     .wl-filter-pill.wl-pill-active {
-      background: var(--ds-background-brand-subtlest);
+      background: rgba(76, 154, 255, 0.08);
       border-color: var(--ds-border-brand);
       color: var(--ds-text-brand);
     }
     .wl-filter-pill.wl-pill-active:hover {
-      background: var(--ds-background-brand-subtlest-hovered);
+      background: rgba(76, 154, 255, 0.14);
+    }
+    .wl-pill-chevron {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      opacity: 0.6;
+      transition: transform var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .wl-filter-pill.wl-pill-active .wl-pill-chevron {
+      opacity: 0.8;
+    }
+    .wl-pill-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 18px;
+      padding: 0 5px;
+      background: rgba(76, 154, 255, 0.2);
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ds-text-brand);
+      line-height: 1;
+      margin-left: 2px;
     }
 
     /* ── Popover ─────────────────────────────────────── */
