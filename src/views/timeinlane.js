@@ -13,6 +13,7 @@ let selectedUsers = [];
 let dateFrom = '';
 let dateTo = '';
 let searchTimeout = null;
+let regenTimeout = null;
 
 export async function renderTimeInLane() {
   const creds = getCredentials();
@@ -33,8 +34,12 @@ export async function renderTimeInLane() {
       accountId: savedUser.accountId,
       displayName: savedUser.displayName,
       emailAddress: savedUser.emailAddress || '',
+      avatarUrl: savedUser.avatarUrls?.['48x48'] || savedUser.avatarUrl || '',
     });
   }
+
+  // Inject custom styles
+  injectTimeInLaneStyles();
 
   const content = document.getElementById('page-content');
   content.innerHTML = `
@@ -43,123 +48,316 @@ export async function renderTimeInLane() {
       <p class="page-subtitle">Time spent in each workflow lane per issue</p>
     </div>
 
-    <div class="card mb-300" id="til-filters">
-      <div class="wl-filters-row">
-        <div class="form-group wl-user-selector" id="til-user-selector">
-          <label class="form-label">Users</label>
-          <div class="pos-relative">
-            <input class="input wl-search-input" type="text" id="til-user-search" placeholder="Search and add users..." autocomplete="off" />
-            <svg class="wl-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <div id="til-user-dropdown" class="user-dropdown d-none"></div>
+    <!-- Filters — Inline pill bar -->
+    <div class="til-filter-bar" id="til-filters">
+      <div class="til-filter-bar-left">
+        <!-- Users pill -->
+        <div class="til-pill-wrapper" id="til-users-pill-wrapper">
+          <button class="til-filter-pill" id="til-users-pill" type="button">
+            <span id="til-users-pill-label">Users</span>
+            <svg class="til-pill-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <!-- Users popover -->
+          <div class="til-popover d-none" id="til-users-popover">
+            <div class="til-popover-header">SELECT USERS</div>
+            <div class="til-popover-body">
+              <div class="til-search-wrap">
+                <svg class="til-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input class="til-search-input" type="text" id="til-user-search" placeholder="Search users..." autocomplete="off" />
+              </div>
+              <div id="til-user-dropdown" class="til-user-dropdown d-none"></div>
+              <div id="til-selected-users-list" class="til-selected-users-list"></div>
+            </div>
           </div>
         </div>
 
-        <div class="form-group wl-date-range">
-          <label class="form-label">Period</label>
-          <select class="input" id="til-date-preset">
-            <optgroup label="Quick">
-              <option value="this-week">This Week</option>
-              <option value="last-week">Last Week</option>
-            </optgroup>
-            <optgroup label="Month">
-              ${generateMonthOptions()}
-            </optgroup>
-            <option value="custom">Custom Date</option>
-          </select>
+        <!-- Date pill -->
+        <div class="til-pill-wrapper" id="til-date-pill-wrapper">
+          <button class="til-filter-pill" id="til-date-pill" type="button">
+            <span id="til-date-pill-label">${now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+            <svg class="til-pill-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <!-- Date popover -->
+          <div class="til-popover d-none" id="til-date-popover">
+            <div class="til-date-mode-bar">
+              <button class="til-date-mode-btn active" data-mode="month">Month</button>
+              <button class="til-date-mode-btn" data-mode="custom">Custom</button>
+            </div>
+            <div id="til-date-month-panel" class="til-date-month-panel">
+              <div class="til-year-nav">
+                <button class="til-year-btn" id="til-year-prev" type="button">&lsaquo;</button>
+                <span class="til-year-label" id="til-year-label">${now.getFullYear()}</span>
+                <button class="til-year-btn" id="til-year-next" type="button">&rsaquo;</button>
+              </div>
+              <div class="til-month-grid" id="til-month-grid"></div>
+            </div>
+            <div id="til-date-custom-panel" class="til-date-custom-panel d-none">
+              <div class="til-custom-field">
+                <label class="til-custom-label">From</label>
+                <input class="til-custom-input" type="date" id="til-date-from" value="${dateFrom}" />
+              </div>
+              <div class="til-custom-field">
+                <label class="til-custom-label">To</label>
+                <input class="til-custom-input" type="date" id="til-date-to" value="${dateTo}" />
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="form-group wl-date-custom d-none" id="til-date-custom-from">
-          <label class="form-label" for="til-date-from">From</label>
-          <input class="input" type="date" id="til-date-from" value="${dateFrom}" />
-        </div>
-        <div class="form-group wl-date-custom d-none" id="til-date-custom-to">
-          <label class="form-label" for="til-date-to">To</label>
-          <input class="input" type="date" id="til-date-to" value="${dateTo}" />
-        </div>
+      </div>
+    </div>
 
-        <button class="btn btn-primary wl-generate-btn" id="til-generate-btn">
-          Generate Report
-        </button>
-      </div>
-      <div id="til-user-chips" class="wl-user-chips">
-        ${renderUserChips()}
-      </div>
+    <!-- User row (avatar + name) -->
+    <div id="til-user-row" class="til-user-row">
+      ${renderUserRow()}
     </div>
 
     <div id="til-results"></div>
   `;
 
-  // Date preset
-  const presetSelect = document.getElementById('til-date-preset');
-  const customFrom = document.getElementById('til-date-custom-from');
-  const customTo = document.getElementById('til-date-custom-to');
+  // ── Users pill popover ────────────────────────
+  const usersPill = document.getElementById('til-users-pill');
+  const usersPopover = document.getElementById('til-users-popover');
+  const datePill = document.getElementById('til-date-pill');
+  const datePopover = document.getElementById('til-date-popover');
 
-  const currentMonthValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  presetSelect.value = currentMonthValue;
-
-  presetSelect.addEventListener('change', () => {
-    const val = presetSelect.value;
-    if (val === 'custom') {
-      customFrom.classList.remove('d-none');
-      customTo.classList.remove('d-none');
+  function updateUsersPillLabel() {
+    const label = document.getElementById('til-users-pill-label');
+    if (selectedUsers.length === 0) {
+      label.innerHTML = 'Users';
+    } else if (selectedUsers.length === 1) {
+      label.innerHTML = selectedUsers[0].displayName;
     } else {
-      customFrom.classList.add('d-none');
-      customTo.classList.add('d-none');
-      applyDatePreset(val);
-      document.getElementById('til-date-from').value = dateFrom;
-      document.getElementById('til-date-to').value = dateTo;
-      generateReport();
+      label.innerHTML = `${selectedUsers[0].displayName} <span class="til-pill-badge">+${selectedUsers.length - 1}</span>`;
+    }
+  }
+
+  function renderSelectedUsersList() {
+    const list = document.getElementById('til-selected-users-list');
+    if (!list) return;
+    if (selectedUsers.length === 0) {
+      list.innerHTML = '<div class="til-selected-empty">No users selected</div>';
+      return;
+    }
+    list.innerHTML = selectedUsers.map((user, i) => `
+      <div class="til-selected-user-item" data-index="${i}">
+        <div class="til-selected-user-left">
+          ${user.avatarUrl
+            ? `<img src="${user.avatarUrl}" alt="" class="til-selected-avatar-img" />`
+            : `<span class="avatar avatar-xs">${user.displayName.charAt(0).toUpperCase()}</span>`
+          }
+          <span class="til-selected-user-name">${user.displayName}</span>
+        </div>
+        <button class="til-selected-user-remove" data-index="${i}" type="button">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    `).join('');
+    list.querySelectorAll('.til-selected-user-remove').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.index);
+        selectedUsers.splice(idx, 1);
+        renderSelectedUsersList();
+        updateUsersPillLabel();
+        refreshUserRow();
+        scheduleRegenerate();
+      });
+    });
+  }
+
+  function closeAllPopovers() {
+    usersPopover.classList.add('d-none');
+    datePopover.classList.add('d-none');
+    usersPill.classList.remove('til-pill-active');
+    datePill.classList.remove('til-pill-active');
+  }
+
+  usersPill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !usersPopover.classList.contains('d-none');
+    closeAllPopovers();
+    if (!isOpen) {
+      usersPopover.classList.remove('d-none');
+      usersPill.classList.add('til-pill-active');
+      renderSelectedUsersList();
+      setTimeout(() => document.getElementById('til-user-search')?.focus(), 50);
     }
   });
 
-  document.getElementById('til-date-from').addEventListener('change', (e) => { dateFrom = e.target.value; generateReport(); });
-  document.getElementById('til-date-to').addEventListener('change', (e) => { dateTo = e.target.value; generateReport(); });
-  document.getElementById('til-generate-btn').addEventListener('click', generateReport);
-
-  // User search
+  // User search inside popover
   const searchInput = document.getElementById('til-user-search');
   searchInput.addEventListener('input', (e) => {
     clearTimeout(searchTimeout);
     const query = e.target.value.trim();
-    if (query.length < 2) { document.getElementById('til-user-dropdown').classList.add('d-none'); return; }
+    if (query.length < 2) {
+      document.getElementById('til-user-dropdown').classList.add('d-none');
+      return;
+    }
     searchTimeout = setTimeout(() => searchAndShowUsers(query), 300);
   });
-  searchInput.addEventListener('focus', () => {
-    const query = searchInput.value.trim();
-    if (query.length >= 2) searchAndShowUsers(query);
-  });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('#til-user-search') && !e.target.closest('#til-user-dropdown')) {
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const firstItem = document.querySelector('#til-user-dropdown .til-dropdown-item:not(.d-none)');
+      if (firstItem) firstItem.click();
+    }
+    if (e.key === 'Escape') {
       document.getElementById('til-user-dropdown').classList.add('d-none');
+      closeAllPopovers();
     }
   });
 
-  if (selectedUsers.length > 0) generateReport();
-}
+  // ── Date pill popover ─────────────────────────
+  let pickerYear = now.getFullYear();
+  let pickerMonth = now.getMonth();
+  let dateMode = 'month';
 
-/* ── User picker ─────────────────────────────────── */
+  function updateDatePillLabel() {
+    const label = document.getElementById('til-date-pill-label');
+    if (dateMode === 'month') {
+      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      label.textContent = `${monthNames[pickerMonth]} ${pickerYear}`;
+    } else {
+      label.textContent = `${dateFrom} → ${dateTo}`;
+    }
+  }
 
-function renderUserChips() {
-  return selectedUsers.map((user, i) => `
-    <span class="user-chip" data-index="${i}">
-      <span class="avatar avatar-sm wl-chip-avatar">${user.displayName.charAt(0).toUpperCase()}</span>
-      <span>${user.displayName}</span>
-      <button class="user-chip-remove" data-index="${i}" aria-label="Remove ${user.displayName}">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </span>
-  `).join('');
-}
+  function renderMonthGrid() {
+    const grid = document.getElementById('til-month-grid');
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    document.getElementById('til-year-label').textContent = pickerYear;
+    grid.innerHTML = monthNames.map((m, i) => {
+      const isActive = i === pickerMonth && pickerYear === pickerYear;
+      return `<button class="til-month-btn ${i === pickerMonth ? 'active' : ''}" data-month="${i}">${m}</button>`;
+    }).join('');
+    grid.querySelectorAll('.til-month-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pickerMonth = parseInt(btn.dataset.month);
+        dateFrom = formatDate(new Date(pickerYear, pickerMonth, 1));
+        dateTo = formatDate(new Date(pickerYear, pickerMonth + 1, 0));
+        updateDatePillLabel();
+        renderMonthGrid();
+        closeAllPopovers();
+        scheduleRegenerate();
+      });
+    });
+  }
 
-function refreshUserChips() {
-  const container = document.getElementById('til-user-chips');
-  container.innerHTML = renderUserChips();
-  container.querySelectorAll('.user-chip-remove').forEach(btn => {
+  datePill.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isOpen = !datePopover.classList.contains('d-none');
+    closeAllPopovers();
+    if (!isOpen) {
+      datePopover.classList.remove('d-none');
+      datePill.classList.add('til-pill-active');
+      renderMonthGrid();
+    }
+  });
+
+  // Year navigation
+  document.getElementById('til-year-prev').addEventListener('click', (e) => {
+    e.stopPropagation();
+    pickerYear--;
+    renderMonthGrid();
+  });
+  document.getElementById('til-year-next').addEventListener('click', (e) => {
+    e.stopPropagation();
+    pickerYear++;
+    renderMonthGrid();
+  });
+
+  // Date mode toggle (Month / Custom)
+  datePopover.querySelectorAll('.til-date-mode-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
-      selectedUsers.splice(parseInt(btn.dataset.index), 1);
-      refreshUserChips();
+      dateMode = btn.dataset.mode;
+      datePopover.querySelectorAll('.til-date-mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('til-date-month-panel').classList.toggle('d-none', dateMode !== 'month');
+      document.getElementById('til-date-custom-panel').classList.toggle('d-none', dateMode !== 'custom');
     });
   });
+
+  // Custom date inputs
+  document.getElementById('til-date-from').addEventListener('change', (e) => {
+    dateFrom = e.target.value;
+    updateDatePillLabel();
+    scheduleRegenerate();
+  });
+  document.getElementById('til-date-to').addEventListener('change', (e) => {
+    dateTo = e.target.value;
+    updateDatePillLabel();
+    scheduleRegenerate();
+  });
+
+  // Close popovers on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#til-users-pill-wrapper')) {
+      usersPopover.classList.add('d-none');
+      usersPill.classList.remove('til-pill-active');
+    }
+    if (!e.target.closest('#til-date-pill-wrapper')) {
+      datePopover.classList.add('d-none');
+      datePill.classList.remove('til-pill-active');
+    }
+  });
+
+  // Initialize labels
+  updateUsersPillLabel();
+  updateDatePillLabel();
+
+  // Auto-generate on load
+  if (selectedUsers.length > 0) {
+    generateReport();
+  }
+}
+
+/* ── Auto-regenerate with debounce ───────────────── */
+
+function scheduleRegenerate() {
+  clearTimeout(regenTimeout);
+  regenTimeout = setTimeout(() => {
+    if (selectedUsers.length > 0) generateReport();
+  }, 500);
+}
+
+/* ── User row display ────────────────────────────── */
+
+function renderUserRow() {
+  if (selectedUsers.length === 0) return '';
+  return selectedUsers.map(user => `
+    <a class="til-user-row-item">
+      ${user.avatarUrl
+        ? `<img src="${user.avatarUrl}" alt="" class="til-user-row-avatar" />`
+        : `<span class="avatar avatar-sm">${user.displayName.charAt(0).toUpperCase()}</span>`
+      }
+      <span>${user.displayName}</span>
+    </a>
+  `).join('<span class="til-user-row-separator">·</span>');
+}
+
+function refreshUserRow() {
+  const row = document.getElementById('til-user-row');
+  if (row) row.innerHTML = renderUserRow();
+}
+
+/* ── User picker ────────────────────────────────── */
+
+function refreshUserChips() {
+  // Update pill label
+  const pillLabel = document.getElementById('til-users-pill-label');
+  if (pillLabel) {
+    if (selectedUsers.length === 0) {
+      pillLabel.innerHTML = 'Users';
+    } else if (selectedUsers.length === 1) {
+      pillLabel.innerHTML = selectedUsers[0].displayName;
+    } else {
+      pillLabel.innerHTML = `${selectedUsers[0].displayName} <span class="til-pill-badge">+${selectedUsers.length - 1}</span>`;
+    }
+  }
+  refreshUserRow();
 }
 
 async function searchAndShowUsers(query) {
@@ -173,36 +371,36 @@ async function searchAndShowUsers(query) {
     let html = '';
     if (matchingGroups.length > 0) {
       html += matchingGroups.map(g => `
-        <button class="user-dropdown-item user-dropdown-group" data-group-id="${g.id}">
-          <svg class="dropdown-group-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <button class="til-dropdown-item til-dropdown-group" data-group-id="${g.id}">
+          <svg class="til-dropdown-group-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <div>
-            <div class="dropdown-item-name">${g.name}</div>
-            <div class="dropdown-item-sub">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</div>
+            <div class="til-dropdown-name">${g.name}</div>
+            <div class="til-dropdown-sub">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</div>
           </div>
         </button>
       `).join('');
-      if (filtered.length > 0) html += '<div class="dropdown-separator"></div>';
+      if (filtered.length > 0) html += '<div class="til-dropdown-separator"></div>';
     }
 
     if (filtered.length > 0) {
       html += filtered.map(u => `
-        <button class="user-dropdown-item" data-account-id="${u.accountId}" data-name="${u.displayName}" data-email="${u.emailAddress || ''}" data-avatar="${u.avatarUrls?.['24x24'] || ''}">
+        <button class="til-dropdown-item" data-account-id="${u.accountId}" data-name="${u.displayName}" data-email="${u.emailAddress || ''}" data-avatar="${u.avatarUrls?.['48x48'] || ''}">
           ${u.avatarUrls?.['24x24']
-            ? `<img src="${u.avatarUrls['24x24']}" alt="" class="dropdown-avatar-img" />`
-            : `<span class="avatar avatar-sm dropdown-avatar-initial">${u.displayName.charAt(0).toUpperCase()}</span>`}
+            ? `<img src="${u.avatarUrls['24x24']}" alt="" class="til-dropdown-avatar-img" />`
+            : `<span class="avatar avatar-sm til-dropdown-avatar-initial">${u.displayName.charAt(0).toUpperCase()}</span>`}
           <div>
-            <div class="dropdown-item-name">${u.displayName}</div>
-            ${u.emailAddress ? `<div class="dropdown-item-sub">${u.emailAddress}</div>` : ''}
+            <div class="til-dropdown-name">${u.displayName}</div>
+            ${u.emailAddress ? `<div class="til-dropdown-sub">${u.emailAddress}</div>` : ''}
           </div>
         </button>
       `).join('');
     }
 
-    if (!html) html = '<div class="user-dropdown-empty">No users or groups found</div>';
+    if (!html) html = '<div class="til-dropdown-empty">No users or groups found</div>';
     dropdown.innerHTML = html;
     dropdown.classList.remove('d-none');
 
-    dropdown.querySelectorAll('.user-dropdown-group').forEach(item => {
+    dropdown.querySelectorAll('.til-dropdown-group').forEach(item => {
       item.addEventListener('click', () => {
         const group = groups.find(g => g.id === item.dataset.groupId);
         if (group) {
@@ -212,13 +410,37 @@ async function searchAndShowUsers(query) {
             }
           });
           refreshUserChips();
+          const list = document.getElementById('til-selected-users-list');
+          if (list && !list.closest('.d-none')) {
+            // Re-render selected list in popover if open
+            const renderFn = () => {
+              if (list) {
+                list.innerHTML = selectedUsers.map((user, i) => `
+                  <div class="til-selected-user-item" data-index="${i}">
+                    <div class="til-selected-user-left">
+                      ${user.avatarUrl
+                        ? `<img src="${user.avatarUrl}" alt="" class="til-selected-avatar-img" />`
+                        : `<span class="avatar avatar-xs">${user.displayName.charAt(0).toUpperCase()}</span>`
+                      }
+                      <span class="til-selected-user-name">${user.displayName}</span>
+                    </div>
+                    <button class="til-selected-user-remove" data-index="${i}" type="button">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </div>
+                `).join('');
+              }
+            };
+            renderFn();
+          }
           document.getElementById('til-user-search').value = '';
           dropdown.classList.add('d-none');
+          scheduleRegenerate();
         }
       });
     });
 
-    dropdown.querySelectorAll('.user-dropdown-item:not(.user-dropdown-group)').forEach(item => {
+    dropdown.querySelectorAll('.til-dropdown-item:not(.til-dropdown-group)').forEach(item => {
       item.addEventListener('click', () => {
         const accountId = item.dataset.accountId;
         const fullUser = users.find(u => u.accountId === accountId);
@@ -230,12 +452,19 @@ async function searchAndShowUsers(query) {
           siteAccounts: fullUser?.siteAccounts || [{ accountId, siteUrl: '', siteName: '' }],
         });
         refreshUserChips();
+        const list = document.getElementById('til-selected-users-list');
+        if (list && !list.closest('.d-none')) {
+          // trigger a full re-render of selected list
+          const event = new Event('click');
+          document.getElementById('til-users-pill')?.dispatchEvent(event);
+        }
         document.getElementById('til-user-search').value = '';
         dropdown.classList.add('d-none');
+        scheduleRegenerate();
       });
     });
   } catch {
-    dropdown.innerHTML = '<div class="user-dropdown-empty">Error searching users</div>';
+    dropdown.innerHTML = '<div class="til-dropdown-empty">Error searching users</div>';
     dropdown.classList.remove('d-none');
   }
 }
@@ -293,7 +522,6 @@ function computeLaneTimes(issue) {
 
   const lanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
 
-  // Track status transitions
   let currentLane = LANE_TODO;
   let lastTransition = new Date(issue.fields?.created);
   const now = new Date();
@@ -305,18 +533,15 @@ function computeLaneTimes(issue) {
       const transitionTime = new Date(history.created);
       const durationMs = transitionTime - lastTransition;
 
-      // Add duration to current lane
       if (durationMs > 0 && lanes[currentLane] !== undefined) {
         lanes[currentLane] += durationMs;
       }
 
-      // Determine new lane
       currentLane = classifyStatus(item.toString);
       lastTransition = transitionTime;
     }
   }
 
-  // Add time in current lane up to now or resolution
   const endDate = issue.fields?.resolutiondate ? new Date(issue.fields.resolutiondate) : now;
   const remaining = endDate - lastTransition;
   if (remaining > 0 && lanes[currentLane] !== undefined) {
@@ -343,7 +568,6 @@ function classifyStatus(statusName) {
   if (progressNames.some(n => lower === n || lower.includes(n))) return LANE_IN_PROGRESS;
   if (todoNames.some(n => lower === n || lower.includes(n))) return LANE_TODO;
 
-  // Default: treat unknown as in-progress
   return LANE_IN_PROGRESS;
 }
 
@@ -373,25 +597,24 @@ function renderResults(laneData) {
   });
   const multiSite = siteGroups.size > 1;
 
-  // Find max total for bar scaling
   const maxTotal = Math.max(...laneData.map(d => LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0)), 1);
 
   results.innerHTML = `
     <div class="stat-grid mb-300">
       <div class="stat-card">
-        <div class="stat-card-label">Avg in To Do</div>
+        <div class="stat-card-label">AVG IN TO DO</div>
         <div class="stat-card-value">${formatMs(avgLanes[LANE_TODO])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-label">Avg in Progress</div>
+        <div class="stat-card-label">AVG IN PROGRESS</div>
         <div class="stat-card-value">${formatMs(avgLanes[LANE_IN_PROGRESS])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-label">Avg in Review</div>
+        <div class="stat-card-label">AVG IN REVIEW</div>
         <div class="stat-card-value">${formatMs(avgLanes[LANE_IN_REVIEW])}</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-label">Issues Tracked</div>
+        <div class="stat-card-label">ISSUES TRACKED</div>
         <div class="stat-card-value">${laneData.length}</div>
       </div>
     </div>
@@ -405,7 +628,7 @@ function renderResults(laneData) {
         <span class="til-legend-item"><span class="til-legend-dot til-dot-done"></span> Done</span>
       </div>
       <div class="table-container">
-        <table class="table">
+        <table class="table til-table">
           <thead>
             <tr>
               <th>Key</th>
@@ -474,42 +697,435 @@ function formatMs(ms) {
 }
 
 function formatDate(date) {
-  return date.toISOString().split('T')[0];
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
-function generateMonthOptions() {
-  const now = new Date();
-  return Array.from({ length: 12 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    return `<option value="${value}">${label}</option>`;
-  }).join('');
-}
+/* ── Injected Styles ─────────────────────────────── */
 
-function applyDatePreset(preset) {
-  const now = new Date();
-  if (preset === 'this-week') {
-    const dow = now.getDay();
-    const mon = new Date(now);
-    mon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
-    const sun = new Date(mon);
-    sun.setDate(mon.getDate() + 6);
-    dateFrom = formatDate(mon);
-    dateTo = formatDate(sun);
-  } else if (preset === 'last-week') {
-    const dow = now.getDay();
-    const thisMon = new Date(now);
-    thisMon.setDate(now.getDate() - (dow === 0 ? 6 : dow - 1));
-    const lastMon = new Date(thisMon);
-    lastMon.setDate(thisMon.getDate() - 7);
-    const lastSun = new Date(lastMon);
-    lastSun.setDate(lastMon.getDate() + 6);
-    dateFrom = formatDate(lastMon);
-    dateTo = formatDate(lastSun);
-  } else {
-    const [year, month] = preset.split('-').map(Number);
-    dateFrom = formatDate(new Date(year, month - 1, 1));
-    dateTo = formatDate(new Date(year, month, 0));
-  }
+function injectTimeInLaneStyles() {
+  if (document.getElementById('til-injected-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'til-injected-styles';
+  style.textContent = `
+    /* ── Filter bar layout ──────────────────────────── */
+    .til-filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--ds-space-100);
+      margin-bottom: var(--ds-space-200);
+    }
+    .til-filter-bar-left {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+    }
+    .til-pill-wrapper {
+      position: relative;
+    }
+
+    /* ── Pills (ADS Dropdown Menu triggers) ──────── */
+    .til-filter-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 0 12px;
+      background: transparent;
+      border: 1px solid var(--ds-border);
+      border-radius: 4px;
+      font-family: var(--ds-font-family-body);
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 20px;
+      color: var(--ds-text-subtle);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 0.1s ease, border-color 0.1s ease, color 0.1s ease;
+    }
+    .til-filter-pill:hover {
+      background: var(--ds-background-neutral-subtle-hovered);
+      color: var(--ds-text);
+    }
+    .til-filter-pill.til-pill-active {
+      background: rgba(76, 154, 255, 0.08);
+      border-color: var(--ds-border-brand);
+      color: var(--ds-text-brand);
+    }
+    .til-filter-pill.til-pill-active:hover {
+      background: rgba(76, 154, 255, 0.14);
+    }
+    .til-pill-chevron {
+      flex-shrink: 0;
+      width: 12px;
+      height: 12px;
+      opacity: 0.7;
+    }
+    .til-filter-pill.til-pill-active .til-pill-chevron {
+      opacity: 1;
+    }
+    .til-pill-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 20px;
+      height: 18px;
+      padding: 0 5px;
+      background: rgba(76, 154, 255, 0.2);
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ds-text-brand);
+      line-height: 1;
+      margin-left: 2px;
+    }
+
+    /* ── Popover ────────────────────────────────────── */
+    .til-popover {
+      position: absolute;
+      top: calc(100% + 6px);
+      left: 0;
+      min-width: 300px;
+      background: var(--ds-surface-overlay);
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-200);
+      box-shadow: var(--ds-shadow-overlay);
+      z-index: 400;
+      animation: til-popover-in 0.15s ease-out;
+    }
+    @keyframes til-popover-in {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .til-popover-header {
+      padding: 12px 16px 8px;
+      font: var(--ds-font-body-small);
+      font-weight: 600;
+      color: var(--ds-text-subtle);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .til-popover-body {
+      padding: 0 12px 12px;
+    }
+
+    /* ── Search within popover ──────────────────────── */
+    .til-search-wrap {
+      position: relative;
+      margin-bottom: 8px;
+    }
+    .til-search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--ds-text-subtlest);
+      pointer-events: none;
+    }
+    .til-search-input {
+      width: 100%;
+      padding: 6px 10px 6px 32px;
+      background: var(--ds-background-input);
+      border: 1px solid var(--ds-border-input);
+      border-radius: var(--ds-radius-100);
+      font: var(--ds-font-body-small);
+      color: var(--ds-text);
+      outline: none;
+      box-sizing: border-box;
+    }
+    .til-search-input:focus {
+      border-color: var(--ds-border-focused);
+      box-shadow: 0 0 0 1px var(--ds-border-focused);
+    }
+
+    /* ── User dropdown in popover ───────────────────── */
+    .til-user-dropdown {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 8px;
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-100);
+      background: var(--ds-surface-overlay);
+    }
+    .til-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 8px 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      font: var(--ds-font-body-small);
+      color: var(--ds-text);
+      transition: background 0.1s;
+    }
+    .til-dropdown-item:hover {
+      background: var(--ds-background-neutral-subtle-hovered);
+    }
+    .til-dropdown-avatar-img {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .til-dropdown-name {
+      font-weight: 500;
+    }
+    .til-dropdown-sub {
+      font-size: 11px;
+      color: var(--ds-text-subtlest);
+    }
+    .til-dropdown-separator {
+      height: 1px;
+      background: var(--ds-border);
+      margin: 4px 0;
+    }
+    .til-dropdown-empty {
+      padding: 12px;
+      text-align: center;
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtlest);
+    }
+    .til-dropdown-group-icon {
+      color: var(--ds-text-subtlest);
+    }
+
+    /* ── Selected users list in popover ─────────────── */
+    .til-selected-users-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .til-selected-user-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 8px;
+      border-radius: var(--ds-radius-100);
+      transition: background 0.1s;
+    }
+    .til-selected-user-item:hover {
+      background: var(--ds-background-neutral-subtle-hovered);
+    }
+    .til-selected-user-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .til-selected-user-name {
+      font: var(--ds-font-body-small);
+      color: var(--ds-text);
+    }
+    .til-selected-user-remove {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      color: var(--ds-text-subtlest);
+      border-radius: var(--ds-radius-050);
+      transition: background 0.1s, color 0.1s;
+    }
+    .til-selected-user-remove:hover {
+      background: var(--ds-background-danger-bold);
+      color: var(--ds-text-inverse);
+    }
+    .til-selected-empty {
+      padding: 8px;
+      text-align: center;
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtlest);
+    }
+    .til-selected-avatar-img {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .til-avatar-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    /* ── Date popover ──────────────────────────────── */
+    .til-date-mode-bar {
+      display: flex;
+      border-bottom: 1px solid var(--ds-border);
+    }
+    .til-date-mode-btn {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: none;
+      font: var(--ds-font-body-small);
+      font-weight: 500;
+      color: var(--ds-text-subtle);
+      cursor: pointer;
+      text-align: center;
+      border-bottom: 2px solid transparent;
+      transition: color 0.1s, border-color 0.1s;
+    }
+    .til-date-mode-btn:hover {
+      color: var(--ds-text);
+    }
+    .til-date-mode-btn.active {
+      color: var(--ds-text-brand);
+      border-bottom-color: var(--ds-border-brand);
+    }
+    .til-date-month-panel {
+      padding: 12px;
+    }
+    .til-year-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--ds-space-200);
+      margin-bottom: 12px;
+    }
+    .til-year-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-100);
+      background: var(--ds-background-neutral-subtle);
+      font-size: 16px;
+      color: var(--ds-text-subtle);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .til-year-btn:hover {
+      background: var(--ds-background-neutral-subtle-hovered);
+    }
+    .til-year-label {
+      font: var(--ds-font-heading-small);
+      color: var(--ds-text);
+      min-width: 60px;
+      text-align: center;
+    }
+    .til-month-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .til-month-btn {
+      padding: 8px 4px;
+      background: var(--ds-background-neutral-subtle);
+      border: 1px solid transparent;
+      border-radius: var(--ds-radius-100);
+      font: var(--ds-font-body-small);
+      color: var(--ds-text);
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.1s, border-color 0.1s;
+    }
+    .til-month-btn:hover {
+      background: var(--ds-background-neutral-subtle-hovered);
+    }
+    .til-month-btn.active {
+      background: var(--ds-background-brand-bold);
+      color: var(--ds-text-inverse);
+      border-color: var(--ds-border-brand);
+    }
+    .til-date-custom-panel {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .til-custom-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .til-custom-label {
+      font: var(--ds-font-body-small);
+      font-weight: 500;
+      color: var(--ds-text-subtle);
+    }
+    .til-custom-input {
+      padding: 6px 10px;
+      background: var(--ds-background-input);
+      border: 1px solid var(--ds-border-input);
+      border-radius: var(--ds-radius-100);
+      font: var(--ds-font-body-small);
+      color: var(--ds-text);
+      outline: none;
+    }
+    .til-custom-input:focus {
+      border-color: var(--ds-border-focused);
+      box-shadow: 0 0 0 1px var(--ds-border-focused);
+    }
+
+    /* ── User row ──────────────────────────────────── */
+    .til-user-row {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+      margin-bottom: var(--ds-space-200);
+      flex-wrap: wrap;
+    }
+    .til-user-row-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-brand);
+      text-decoration: none;
+    }
+    .til-user-row-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .til-user-row-separator {
+      color: var(--ds-text-subtlest);
+    }
+
+    /* ── Table spacing fix ──────────────────────────── */
+    .til-table th,
+    .til-table td {
+      padding: 10px 12px;
+      vertical-align: middle;
+    }
+    .til-table th {
+      font: var(--ds-font-body-small);
+      font-weight: 600;
+      color: var(--ds-text-subtle);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+    .til-table td {
+      font: var(--ds-font-body-small);
+    }
+    .til-table .til-bar-cell {
+      min-width: 200px;
+      padding: 10px 12px;
+    }
+    .til-table .til-time-cell {
+      white-space: nowrap;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .til-table .ct-summary-cell {
+      max-width: 280px;
+    }
+  `;
+  document.head.appendChild(style);
 }
