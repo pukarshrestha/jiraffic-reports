@@ -568,15 +568,7 @@ function classifyStatus(statusName) {
 function renderResults(laneData) {
   const results = document.getElementById('til-results');
 
-  // Summary averages (global) — only To Do, In Progress, In Review
-  const avgLanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0 };
-  laneData.forEach(d => {
-    LANE_ORDER.forEach(lane => { avgLanes[lane] += d.lanes[lane]; });
-  });
-  LANE_ORDER.forEach(lane => { avgLanes[lane] /= laneData.length; });
-
   // Build a lookup: which accountIds belong to which selected user
-  // (handles multi-site accounts where a user can have different accountIds per site)
   const accountIdToUserId = new Map();
   selectedUsers.forEach(u => {
     accountIdToUserId.set(u.accountId, u.accountId);
@@ -587,20 +579,62 @@ function renderResults(laneData) {
     }
   });
 
-  // Group issues by assignee — only include if assignee matches a selected user
-  const perUser = {};
-  selectedUsers.forEach(u => {
-    perUser[u.accountId] = { user: u, items: [] };
-  });
+  // Build task groups from ALL items (so subtasks from any user are included)
+  const siteGroups = new Map();
   laneData.forEach(d => {
-    const assigneeId = d.issue.fields?.assignee?.accountId;
-    const userId = assigneeId ? accountIdToUserId.get(assigneeId) : null;
-    if (userId && perUser[userId]) {
-      perUser[userId].items.push(d);
-    }
-    // Unmatched items are intentionally skipped for per-user tabs
-    // (they still appear in the "All Users" tab via the full laneData)
+    const siteName = d.issue._site?.name || 'Default';
+    const siteUrl = d.issue._site?.url || '';
+    if (!siteGroups.has(siteUrl)) siteGroups.set(siteUrl, { siteName, siteUrl, items: [] });
+    siteGroups.get(siteUrl).items.push(d);
   });
+
+  // Build task groups per site
+  const allTaskGroupsBySite = [];
+  for (const [, group] of siteGroups) {
+    const taskGroups = buildTaskGroups(group.items, group.items);
+    allTaskGroupsBySite.push({ ...group, taskGroups });
+  }
+
+  // Helper: filter task groups for a specific user
+  // A task group shows under user X if the PARENT's assignee matches user X
+  function filterTaskGroupsForUser(userId) {
+    const filtered = [];
+    for (const sg of allTaskGroupsBySite) {
+      const userGroups = sg.taskGroups.filter(tg => {
+        const parentAssigneeId = tg.parent.issue?.fields?.assignee?.accountId;
+        const resolvedUserId = parentAssigneeId ? accountIdToUserId.get(parentAssigneeId) : null;
+        return resolvedUserId === userId;
+      });
+      if (userGroups.length > 0) {
+        filtered.push({ ...sg, taskGroups: userGroups });
+      }
+    }
+    return filtered;
+  }
+
+  // Helper: compute stats from task groups
+  function computeStats(siteTaskGroups) {
+    const avgLanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0 };
+    let issueCount = 0;
+    siteTaskGroups.forEach(sg => {
+      sg.taskGroups.forEach(tg => {
+        // Count subtasks (or parent itself if solo)
+        if (tg.subtasks.length > 0) {
+          tg.subtasks.forEach(st => {
+            LANE_ORDER.forEach(l => { avgLanes[l] += st.lanes[l]; });
+            issueCount++;
+          });
+        } else if (tg.parent.lanes) {
+          LANE_ORDER.forEach(l => { avgLanes[l] += tg.parent.lanes[l]; });
+          issueCount++;
+        }
+      });
+    });
+    if (issueCount > 0) {
+      LANE_ORDER.forEach(l => { avgLanes[l] /= issueCount; });
+    }
+    return { avgLanes, issueCount };
+  }
 
   // Build tabs
   const showTabs = selectedUsers.length > 1;
@@ -608,11 +642,8 @@ function renderResults(laneData) {
   const tabLabels = showTabs ? [...selectedUsers.map(u => u.displayName), 'All Users'] : [];
   const tabAvatars = showTabs ? [...selectedUsers.map(u => u.avatarUrl || ''), ''] : [];
 
-  const statCardsHtml = renderStatCards(avgLanes, laneData.length);
-
   if (showTabs) {
     results.innerHTML = `
-      ${statCardsHtml}
       <!-- Tab Bar -->
       <div class="wl-tabs" id="til-tabs">
         ${tabIds.map((id, i) => `
@@ -623,14 +654,16 @@ function renderResults(laneData) {
         `).join('')}
       </div>
       <!-- Tab Panels -->
-      ${tabIds.map((id, i) => `
+      ${tabIds.map((id, i) => {
+        const userSiteGroups = id === 'all' ? allTaskGroupsBySite : filterTaskGroupsForUser(id);
+        const { avgLanes, issueCount } = computeStats(userSiteGroups);
+        const showAssigneeCol = id === 'all';
+        return `
         <div class="wl-tab-panel ${i === 0 ? 'active' : ''}" data-panel="${id}">
-          ${id === 'all'
-            ? renderLaneAccordion(laneData, laneData, true)
-            : renderLaneAccordion(perUser[id]?.items || [], laneData, false)
-          }
-        </div>
-      `).join('')}
+          ${renderStatCards(avgLanes, issueCount)}
+          ${renderLaneAccordionFromGroups(userSiteGroups, showAssigneeCol)}
+        </div>`;
+      }).join('')}
     `;
 
     // Tab switching
@@ -643,9 +676,10 @@ function renderResults(laneData) {
     });
   } else {
     // Single user — no tabs
+    const allStats = computeStats(allTaskGroupsBySite);
     results.innerHTML = `
-      ${statCardsHtml}
-      ${renderLaneAccordion(laneData, laneData, false)}
+      ${renderStatCards(allStats.avgLanes, allStats.issueCount)}
+      ${renderLaneAccordionFromGroups(allTaskGroupsBySite, false)}
     `;
   }
 
@@ -695,12 +729,12 @@ function renderStatCards(avgLanes, issueCount) {
   `;
 }
 
-function renderTableHeader(showAssignee) {
+function renderTableHeader(showAssigneeInHeader) {
   return `
     <tr>
       <th class="til-col-key">Key</th>
       <th class="til-col-summary">Summary</th>
-      ${showAssignee ? '<th class="til-col-assignee">Assignee</th>' : ''}
+      <th class="til-col-assignee">Assignee</th>
       <th class="til-col-bar">Lane Distribution</th>
       <th class="til-col-time">To Do</th>
       <th class="til-col-time">In Progress</th>
@@ -710,10 +744,11 @@ function renderTableHeader(showAssignee) {
   `;
 }
 
-/* ── Task-Accordion Table ────────────────────────── */
+/* ── Render from pre-built task groups ──────────── */
 
-function renderLaneAccordion(items, allItems, showAssignee) {
-  if (!items.length) {
+function renderLaneAccordionFromGroups(siteTaskGroups, showAssigneeInHeader) {
+  const hasAny = siteTaskGroups.some(sg => sg.taskGroups.length > 0);
+  if (!hasAny) {
     return `
       <div class="card mb-300">
         <div class="empty-state">
@@ -723,16 +758,7 @@ function renderLaneAccordion(items, allItems, showAssignee) {
       </div>`;
   }
 
-  // Site grouping
-  const siteGroups = new Map();
-  items.forEach(d => {
-    const siteName = d.issue._site?.name || 'Default';
-    const siteUrl = d.issue._site?.url || '';
-    const key = siteUrl;
-    if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
-    siteGroups.get(key).items.push(d);
-  });
-  const colSpan = showAssignee ? 8 : 7;
+  const colSpan = 8; // always 8 columns now (assignee always present)
 
   let html = `
     <div class="card mb-300">
@@ -744,29 +770,23 @@ function renderLaneAccordion(items, allItems, showAssignee) {
       </div>
   `;
 
-  for (const [, group] of siteGroups) {
-    // Single table per site group with sticky header
+  for (const sg of siteTaskGroups) {
     html += `
       <div class="table-container til-table-wrapper">
         <table class="table til-table">
           <thead class="til-sticky-head">
-            <tr class="til-site-row"><td colspan="${colSpan}"><div class="wl-site-group-title">${group.siteName}</div></td></tr>
-            ${renderTableHeader(showAssignee)}
+            <tr class="til-site-row"><td colspan="${colSpan}"><div class="wl-site-group-title">${sg.siteName}</div></td></tr>
+            ${renderTableHeader(showAssigneeInHeader)}
           </thead>
           <tbody>
     `;
 
-    // Group items by parent task
-    // Pass all items from this site so subtasks from other users can be included
-    const siteAllItems = allItems.filter(d => (d.issue._site?.url || '') === group.siteUrl);
-    const taskGroups = buildTaskGroups(group.items, siteAllItems);
     let rowIdx = 0;
-
-    taskGroups.forEach(tg => {
+    sg.taskGroups.forEach(tg => {
       if (tg.subtasks.length === 0) {
-        html += renderSoloRow(tg.parent, group.siteUrl, showAssignee, rowIdx);
+        html += renderSoloRow(tg.parent, sg.siteUrl, rowIdx);
       } else {
-        html += renderTaskAccordion(tg, group.siteUrl, showAssignee, rowIdx);
+        html += renderTaskAccordion(tg, sg.siteUrl, rowIdx);
       }
       rowIdx++;
     });
@@ -891,14 +911,13 @@ function renderLaneBarHtml(lanes) {
   `;
 }
 
-function renderSoloRow(d, siteUrl, showAssignee, rowIdx) {
+function renderSoloRow(d, siteUrl, rowIdx) {
   const total = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
-  const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
   return `
     <tr class="til-parent-row">
       <td class="til-col-key"><a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a></td>
       <td class="til-col-summary text-truncate">${d.issue.fields?.summary || ''}</td>
-      ${showAssignee ? `<td class="til-col-assignee til-assignee-cell">${assigneeName}</td>` : ''}
+      <td class="til-col-assignee"></td>
       <td class="til-col-bar til-bar-cell">${renderLaneBarHtml(d.lanes)}</td>
       <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_TODO])}</td>
       <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_IN_PROGRESS])}</td>
@@ -908,7 +927,7 @@ function renderSoloRow(d, siteUrl, showAssignee, rowIdx) {
   `;
 }
 
-function renderTaskAccordion(tg, siteUrl, showAssignee, rowIdx) {
+function renderTaskAccordion(tg, siteUrl, rowIdx) {
   const lanes = tg.aggLanes || tg.parent.lanes || { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
   const total = LANE_ORDER.reduce((s, l) => s + lanes[l], 0);
   const parentKey = tg.parent.issue.key;
@@ -929,7 +948,7 @@ function renderTaskAccordion(tg, siteUrl, showAssignee, rowIdx) {
           <span class="til-subtask-count">${tg.subtasks.length} subtask${tg.subtasks.length !== 1 ? 's' : ''}</span>
         </div>
       </td>
-      ${showAssignee ? '<td class="til-col-assignee"></td>' : ''}
+      <td class="til-col-assignee"></td>
       <td class="til-col-bar til-bar-cell">${renderLaneBarHtml(lanes)}</td>
       <td class="til-col-time til-time-cell">${formatMs(lanes[LANE_TODO])}</td>
       <td class="til-col-time til-time-cell">${formatMs(lanes[LANE_IN_PROGRESS])}</td>
@@ -938,15 +957,25 @@ function renderTaskAccordion(tg, siteUrl, showAssignee, rowIdx) {
     </tr>
   `;
 
-  // Subtask rows (hidden by default)
+  // Subtask rows (hidden by default) — always show assignee with avatar
   tg.subtasks.forEach(d => {
     const stTotal = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
-    const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
+    const assignee = d.issue.fields?.assignee;
+    const assigneeName = assignee?.displayName || 'Unassigned';
+    const avatarUrl = assignee?.avatarUrls?.['24x24'] || assignee?.avatarUrls?.['16x16'] || '';
+    const avatarHtml = avatarUrl
+      ? `<img src="${avatarUrl}" alt="" class="til-subtask-avatar" />`
+      : `<span class="til-subtask-avatar-fallback">${assigneeName.charAt(0).toUpperCase()}</span>`;
     html += `
     <tr class="til-subtask-row d-none" data-parent="${groupId}">
       <td class="til-col-key til-indent"><a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a></td>
       <td class="til-col-summary text-truncate">${d.issue.fields?.summary || ''}</td>
-      ${showAssignee ? `<td class="til-col-assignee til-assignee-cell">${assigneeName}</td>` : ''}
+      <td class="til-col-assignee til-assignee-cell">
+        <div class="til-assignee-with-avatar">
+          ${avatarHtml}
+          <span>${assigneeName}</span>
+        </div>
+      </td>
       <td class="til-col-bar til-bar-cell">${renderLaneBarHtml(d.lanes)}</td>
       <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_TODO])}</td>
       <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_IN_PROGRESS])}</td>
@@ -1206,6 +1235,32 @@ function injectTimeInLaneStyles() {
       max-width: 160px;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+    .til-assignee-with-avatar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .til-subtask-avatar {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+    .til-subtask-avatar-fallback {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--ds-background-neutral-bold);
+      color: var(--ds-text-inverse);
+      font: var(--ds-font-body-small);
+      font-weight: 600;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
     }
   `;
   document.head.appendChild(style);
