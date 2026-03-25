@@ -575,36 +575,31 @@ function renderResults(laneData) {
   });
   LANE_ORDER.forEach(lane => { avgLanes[lane] /= laneData.length; });
 
-  // Group issues by assignee
+  // Build a lookup: which accountIds belong to which selected user
+  // (handles multi-site accounts where a user can have different accountIds per site)
+  const accountIdToUserId = new Map();
+  selectedUsers.forEach(u => {
+    accountIdToUserId.set(u.accountId, u.accountId);
+    if (u.siteAccounts) {
+      u.siteAccounts.forEach(sa => {
+        accountIdToUserId.set(sa.accountId, u.accountId);
+      });
+    }
+  });
+
+  // Group issues by assignee — only include if assignee matches a selected user
   const perUser = {};
   selectedUsers.forEach(u => {
     perUser[u.accountId] = { user: u, items: [] };
   });
   laneData.forEach(d => {
     const assigneeId = d.issue.fields?.assignee?.accountId;
-    if (assigneeId && perUser[assigneeId]) {
-      perUser[assigneeId].items.push(d);
-    } else {
-      let matched = false;
-      for (const u of selectedUsers) {
-        if (u.siteAccounts) {
-          for (const sa of u.siteAccounts) {
-            if (sa.accountId === assigneeId) {
-              perUser[u.accountId].items.push(d);
-              matched = true;
-              break;
-            }
-          }
-        }
-        if (matched) break;
-      }
-      if (!matched) {
-        const firstKey = selectedUsers[0]?.accountId;
-        if (firstKey && perUser[firstKey]) {
-          perUser[firstKey].items.push(d);
-        }
-      }
+    const userId = assigneeId ? accountIdToUserId.get(assigneeId) : null;
+    if (userId && perUser[userId]) {
+      perUser[userId].items.push(d);
     }
+    // Unmatched items are intentionally skipped for per-user tabs
+    // (they still appear in the "All Users" tab via the full laneData)
   });
 
   // Build tabs
@@ -631,8 +626,8 @@ function renderResults(laneData) {
       ${tabIds.map((id, i) => `
         <div class="wl-tab-panel ${i === 0 ? 'active' : ''}" data-panel="${id}">
           ${id === 'all'
-            ? renderLaneAccordion(laneData, true)
-            : renderLaneAccordion(perUser[id]?.items || [], false)
+            ? renderLaneAccordion(laneData, laneData, true)
+            : renderLaneAccordion(perUser[id]?.items || [], laneData, false)
           }
         </div>
       `).join('')}
@@ -650,7 +645,7 @@ function renderResults(laneData) {
     // Single user — no tabs
     results.innerHTML = `
       ${statCardsHtml}
-      ${renderLaneAccordion(laneData, false)}
+      ${renderLaneAccordion(laneData, laneData, false)}
     `;
   }
 
@@ -717,7 +712,7 @@ function renderTableHeader(showAssignee) {
 
 /* ── Task-Accordion Table ────────────────────────── */
 
-function renderLaneAccordion(items, showAssignee) {
+function renderLaneAccordion(items, allItems, showAssignee) {
   if (!items.length) {
     return `
       <div class="card mb-300">
@@ -762,7 +757,9 @@ function renderLaneAccordion(items, showAssignee) {
     `;
 
     // Group items by parent task
-    const taskGroups = buildTaskGroups(group.items);
+    // Pass all items from this site so subtasks from other users can be included
+    const siteAllItems = allItems.filter(d => (d.issue._site?.url || '') === group.siteUrl);
+    const taskGroups = buildTaskGroups(group.items, siteAllItems);
     let rowIdx = 0;
 
     taskGroups.forEach(tg => {
@@ -793,7 +790,8 @@ function renderLaneAccordion(items, showAssignee) {
  * Otherwise, use the parent key/summary from the subtask's parent field.
  * Issues without a parent become standalone entries.
  */
-function buildTaskGroups(items) {
+function buildTaskGroups(items, allItems) {
+  allItems = allItems || items; // fallback if not provided
   const byKey = new Map();  // key → laneData item
   const subtaskOf = new Map(); // subtask key → parent key
 
@@ -834,7 +832,9 @@ function buildTaskGroups(items) {
         });
         if (parentItem) consumed.add(parentKey);
       }
-      groups.get(parentKey).subtasks.push(d);
+      if (!groups.get(parentKey).subtasks.some(s => s.issue.key === d.issue.key)) {
+        groups.get(parentKey).subtasks.push(d);
+      }
       consumed.add(d.issue.key);
     }
   });
@@ -845,6 +845,18 @@ function buildTaskGroups(items) {
       groups.set(d.issue.key, { parent: d, subtasks: [], parentInItems: true });
     }
   });
+
+  // Third pass: for parents with subtasks, also pull in subtasks from allItems
+  // that weren't in the filtered items (e.g. subtasks assigned to other users)
+  for (const [parentKey, tg] of groups) {
+    if (tg.subtasks.length > 0 || consumed.has(parentKey)) {
+      allItems.forEach(d => {
+        if (d.issue.fields?.parent?.key === parentKey && !tg.subtasks.some(s => s.issue.key === d.issue.key)) {
+          tg.subtasks.push(d);
+        }
+      });
+    }
+  }
 
   // Compute aggregate lanes for parents with subtasks
   for (const [, tg] of groups) {
@@ -865,10 +877,11 @@ function buildTaskGroups(items) {
 }
 
 function renderLaneBarHtml(lanes) {
-  const total = LANE_ORDER_ALL.reduce((s, l) => s + lanes[l], 0);
-  const pctTodo = total > 0 ? (lanes[LANE_TODO] / total * 100) : 0;
-  const pctProgress = total > 0 ? (lanes[LANE_IN_PROGRESS] / total * 100) : 0;
-  const pctReview = total > 0 ? (lanes[LANE_IN_REVIEW] / total * 100) : 0;
+  // Use only the 3 visible lanes for total so segments fill 100% of the bar
+  const visibleTotal = LANE_ORDER.reduce((s, l) => s + lanes[l], 0);
+  const pctTodo = visibleTotal > 0 ? (lanes[LANE_TODO] / visibleTotal * 100) : 0;
+  const pctProgress = visibleTotal > 0 ? (lanes[LANE_IN_PROGRESS] / visibleTotal * 100) : 0;
+  const pctReview = visibleTotal > 0 ? (lanes[LANE_IN_REVIEW] / visibleTotal * 100) : 0;
   return `
     <div class="til-bar">
       <div class="til-bar-segment til-seg-todo" data-pct="${pctTodo.toFixed(1)}"></div>
