@@ -1867,7 +1867,7 @@ function extractComment(comment) {
   return '';
 }
 
-function injectWorklogStyles() {
+export function injectWorklogStyles() {
   if (document.getElementById('worklog-styles')) return;
   const style = document.createElement('style');
   style.id = 'worklog-styles';
@@ -1880,7 +1880,6 @@ function injectWorklogStyles() {
       gap: var(--ds-space-150);
       padding: var(--ds-space-100) 0;
       margin-bottom: var(--ds-space-200);
-      border-bottom: 1px solid var(--ds-border);
     }
     .wl-filter-bar-left {
       display: flex;
