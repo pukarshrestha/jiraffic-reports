@@ -398,8 +398,10 @@ export function buildUserLaneTimeJqlPerSite(selectedUsers, dateFrom, dateTo) {
  * Search issues across sites, then fetch changelog for each issue.
  * Two-step approach: uses searchIssuesOnSite (proven) + individual changelog fetch.
  */
-export async function searchAllIssuesWithChangelog(siteJqls, fields) {
+export async function searchAllIssuesWithChangelog(siteJqls, fields, onProgress) {
   // Step 1: Fetch issues using the same pattern as searchAllIssuesMultiSite
+  if (onProgress) onProgress({ phase: 'search', current: 0, total: 0, message: 'Searching issues...' });
+
   const results = await Promise.allSettled(
     siteJqls.map(async ({ site, jql }) => {
       const allIssues = [];
@@ -422,11 +424,13 @@ export async function searchAllIssuesWithChangelog(siteJqls, fields) {
     if (r.status === 'fulfilled') merged.push(...r.value);
   });
 
+  if (onProgress) onProgress({ phase: 'changelog', current: 0, total: merged.length, message: `Loading changelogs (0/${merged.length})...` });
+
   // Step 2: Fetch changelog for each issue (in batches of 10)
   const batchSize = 10;
   for (let i = 0; i < merged.length; i += batchSize) {
     const batch = merged.slice(i, i + batchSize);
-    const changelogResults = await Promise.allSettled(
+    await Promise.allSettled(
       batch.map(async issue => {
         try {
           const data = await jiraFetchForSite(issue._site, `/issue/${issue.key}?expand=changelog&fields=summary`);
@@ -436,6 +440,8 @@ export async function searchAllIssuesWithChangelog(siteJqls, fields) {
         }
       })
     );
+    const done = Math.min(i + batchSize, merged.length);
+    if (onProgress) onProgress({ phase: 'changelog', current: done, total: merged.length, message: `Loading changelogs (${done}/${merged.length})...` });
   }
 
   return merged;

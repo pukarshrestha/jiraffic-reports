@@ -40,7 +40,7 @@ export async function renderTimeInLane() {
     });
   }
 
-  // Inject shared WL styles (filter bar, pills, popover, tabs) + TIL-specific styles
+  // Inject shared WL styles (filter bar, pills, popover, tabs, accordion) + TIL-specific styles
   injectWorklogStyles();
   injectTimeInLaneStyles();
 
@@ -98,14 +98,14 @@ export async function renderTimeInLane() {
               </div>
               <div class="wl-month-grid" id="til-month-grid"></div>
             </div>
-            <div id="til-date-custom-panel" class="wl-date-custom-panel d-none">
-              <div class="wl-date-custom-field">
-                <label class="wl-date-custom-label">From</label>
-                <input class="wl-date-custom-input" type="date" id="til-date-from" value="${dateFrom}" />
+            <div id="til-date-custom-panel" class="wl-date-panel d-none">
+              <div class="wl-custom-date-row">
+                <label class="wl-custom-date-label">From</label>
+                <input class="input wl-custom-date-input" type="date" id="til-date-from" value="${dateFrom}" />
               </div>
-              <div class="wl-date-custom-field">
-                <label class="wl-date-custom-label">To</label>
-                <input class="wl-date-custom-input" type="date" id="til-date-to" value="${dateTo}" />
+              <div class="wl-custom-date-row">
+                <label class="wl-custom-date-label">To</label>
+                <input class="input wl-custom-date-input" type="date" id="til-date-to" value="${dateTo}" />
               </div>
             </div>
           </div>
@@ -136,7 +136,7 @@ export async function renderTimeInLane() {
     } else if (selectedUsers.length === 1) {
       label.innerHTML = selectedUsers[0].displayName;
     } else {
-      label.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-count">+${selectedUsers.length - 1}</span>`;
+      label.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-badge">+${selectedUsers.length - 1}</span>`;
     }
   }
 
@@ -148,20 +148,20 @@ export async function renderTimeInLane() {
       return;
     }
     list.innerHTML = selectedUsers.map((user, i) => `
-      <div class="wl-selected-item" data-index="${i}">
-        <div class="wl-selected-left">
+      <div class="wl-selected-user-item" data-index="${i}">
+        <div class="wl-selected-user-left">
           ${user.avatarUrl
-            ? `<img src="${user.avatarUrl}" alt="" class="wl-selected-avatar" />`
+            ? `<img src="${user.avatarUrl}" alt="" class="avatar avatar-xs wl-avatar-img" />`
             : `<span class="avatar avatar-xs">${user.displayName.charAt(0).toUpperCase()}</span>`
           }
-          <span class="wl-selected-name">${user.displayName}</span>
+          <span class="wl-selected-user-name">${user.displayName}</span>
         </div>
-        <button class="wl-selected-remove" data-index="${i}" type="button">
+        <button class="wl-selected-user-remove" data-index="${i}" type="button">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
     `).join('');
-    list.querySelectorAll('.wl-selected-remove').forEach(btn => {
+    list.querySelectorAll('.wl-selected-user-remove').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const idx = parseInt(btn.dataset.index);
@@ -207,7 +207,7 @@ export async function renderTimeInLane() {
   searchInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      const firstItem = document.querySelector('#til-user-dropdown .wl-popover-result-item:not(.d-none)');
+      const firstItem = document.querySelector('#til-user-dropdown .user-dropdown-item:not(.d-none)');
       if (firstItem) firstItem.click();
     }
     if (e.key === 'Escape') {
@@ -236,9 +236,9 @@ export async function renderTimeInLane() {
     const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     document.getElementById('til-year-label').textContent = pickerYear;
     grid.innerHTML = monthNames.map((m, i) => {
-      return `<button class="wl-month-btn ${i === pickerMonth ? 'active' : ''}" data-month="${i}">${m}</button>`;
+      return `<button class="wl-month-cell ${i === pickerMonth ? 'selected' : ''}" data-month="${i}">${m}</button>`;
     }).join('');
-    grid.querySelectorAll('.wl-month-btn').forEach(btn => {
+    grid.querySelectorAll('.wl-month-cell').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         pickerMonth = parseInt(btn.dataset.month);
@@ -314,6 +314,7 @@ export async function renderTimeInLane() {
   // Initialize labels
   updateUsersPillLabel();
   updateDatePillLabel();
+  renderSelectedUsersList();
 
   // Auto-generate on load
   if (selectedUsers.length > 0) {
@@ -340,7 +341,7 @@ function refreshUserChips() {
     } else if (selectedUsers.length === 1) {
       pillLabel.innerHTML = selectedUsers[0].displayName;
     } else {
-      pillLabel.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-count">+${selectedUsers.length - 1}</span>`;
+      pillLabel.innerHTML = `${selectedUsers[0].displayName} <span class="wl-pill-badge">+${selectedUsers.length - 1}</span>`;
     }
   }
 }
@@ -356,36 +357,36 @@ async function searchAndShowUsers(query) {
     let html = '';
     if (matchingGroups.length > 0) {
       html += matchingGroups.map(g => `
-        <button class="wl-popover-result-item til-dropdown-group" data-group-id="${g.id}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color: var(--ds-text-subtlest); flex-shrink: 0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <button class="user-dropdown-item user-dropdown-group" data-group-id="${g.id}">
+          <svg class="dropdown-group-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <div>
-            <div class="wl-popover-result-name">${g.name}</div>
-            <div class="wl-popover-result-email">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</div>
+            <div class="dropdown-item-name">${g.name}</div>
+            <div class="dropdown-item-sub">${g.users.length} member${g.users.length !== 1 ? 's' : ''}</div>
           </div>
         </button>
       `).join('');
-      if (filtered.length > 0) html += '<div class="wl-popover-separator"></div>';
+      if (filtered.length > 0) html += '<div class="dropdown-separator"></div>';
     }
 
     if (filtered.length > 0) {
       html += filtered.map(u => `
-        <button class="wl-popover-result-item" data-account-id="${u.accountId}" data-name="${u.displayName}" data-email="${u.emailAddress || ''}" data-avatar="${u.avatarUrls?.['48x48'] || ''}">
+        <button class="user-dropdown-item" data-account-id="${u.accountId}" data-name="${u.displayName}" data-email="${u.emailAddress || ''}" data-avatar="${u.avatarUrls?.['48x48'] || ''}">
           ${u.avatarUrls?.['24x24']
-            ? `<img src="${u.avatarUrls['24x24']}" alt="" class="wl-popover-result-avatar" />`
-            : `<span class="avatar avatar-sm" style="width:24px;height:24px;font-size:11px;">${u.displayName.charAt(0).toUpperCase()}</span>`}
+            ? `<img src="${u.avatarUrls['24x24']}" alt="" class="dropdown-avatar-img" />`
+            : `<span class="avatar avatar-sm dropdown-avatar-initial">${u.displayName.charAt(0).toUpperCase()}</span>`}
           <div>
-            <div class="wl-popover-result-name">${u.displayName}</div>
-            ${u.emailAddress ? `<div class="wl-popover-result-email">${u.emailAddress}</div>` : ''}
+            <div class="dropdown-item-name">${u.displayName}</div>
+            ${u.emailAddress ? `<div class="dropdown-item-sub">${u.emailAddress}</div>` : ''}
           </div>
         </button>
       `).join('');
     }
 
-    if (!html) html = '<div class="wl-popover-empty">No users or groups found</div>';
+    if (!html) html = '<div class="user-dropdown-empty">No users or groups found</div>';
     dropdown.innerHTML = html;
     dropdown.classList.remove('d-none');
 
-    dropdown.querySelectorAll('.til-dropdown-group').forEach(item => {
+    dropdown.querySelectorAll('.user-dropdown-group').forEach(item => {
       item.addEventListener('click', () => {
         const group = groups.find(g => g.id === item.dataset.groupId);
         if (group) {
@@ -402,7 +403,7 @@ async function searchAndShowUsers(query) {
       });
     });
 
-    dropdown.querySelectorAll('.wl-popover-result-item:not(.til-dropdown-group)').forEach(item => {
+    dropdown.querySelectorAll('.user-dropdown-item:not(.user-dropdown-group)').forEach(item => {
       item.addEventListener('click', () => {
         const accountId = item.dataset.accountId;
         const fullUser = users.find(u => u.accountId === accountId);
@@ -420,7 +421,7 @@ async function searchAndShowUsers(query) {
       });
     });
   } catch {
-    dropdown.innerHTML = '<div class="wl-popover-empty">Error searching users</div>';
+    dropdown.innerHTML = '<div class="user-dropdown-empty">Error searching users</div>';
     dropdown.classList.remove('d-none');
   }
 }
@@ -463,11 +464,17 @@ async function generateReport() {
       return;
     }
 
-    // Update progress
-    const progressEl = document.querySelector('.wl-loading-progress');
-    if (progressEl) progressEl.textContent = 'Searching issues...';
+    // Progress callback to update loading text
+    const onProgress = ({ message }) => {
+      const progressEl = document.querySelector('.wl-loading-progress');
+      if (progressEl) progressEl.textContent = message;
+    };
 
-    const issues = await searchAllIssuesWithChangelog(siteJqls, 'summary,status,assignee,project,issuetype,created,resolutiondate');
+    const issues = await searchAllIssuesWithChangelog(
+      siteJqls,
+      'summary,status,assignee,project,issuetype,parent,created,resolutiondate',
+      onProgress
+    );
 
     if (!issues.length) {
       results.innerHTML = `
@@ -479,7 +486,7 @@ async function generateReport() {
       return;
     }
 
-    if (progressEl) progressEl.textContent = `Processing ${issues.length} issues...`;
+    onProgress({ message: `Processing ${issues.length} issues...` });
 
     const laneData = issues.map(issue => ({
       issue,
@@ -507,7 +514,6 @@ async function generateReport() {
 
 /**
  * Parse issue changelog to compute time in each lane.
- * Returns { 'To Do': ms, 'In Progress': ms, 'In Review': ms, 'Done': ms }
  */
 function computeLaneTimes(issue) {
   const histories = issue.changelog?.histories || [];
@@ -573,13 +579,11 @@ function renderResults(laneData) {
   selectedUsers.forEach(u => {
     perUser[u.accountId] = { user: u, items: [] };
   });
-  // Also prepare an "unassigned" bucket
   laneData.forEach(d => {
     const assigneeId = d.issue.fields?.assignee?.accountId;
     if (assigneeId && perUser[assigneeId]) {
       perUser[assigneeId].items.push(d);
     } else {
-      // Try to match by looking through all selected user accounts
       let matched = false;
       for (const u of selectedUsers) {
         if (u.siteAccounts) {
@@ -594,7 +598,6 @@ function renderResults(laneData) {
         if (matched) break;
       }
       if (!matched) {
-        // Add to first user's bucket or create unassigned
         const firstKey = selectedUsers[0]?.accountId;
         if (firstKey && perUser[firstKey]) {
           perUser[firstKey].items.push(d);
@@ -627,8 +630,8 @@ function renderResults(laneData) {
       ${tabIds.map((id, i) => `
         <div class="wl-tab-panel ${i === 0 ? 'active' : ''}" data-panel="${id}">
           ${id === 'all'
-            ? renderLaneTable(laneData, true)
-            : renderLaneTable(perUser[id]?.items || [], false)
+            ? renderLaneAccordion(laneData, true)
+            : renderLaneAccordion(perUser[id]?.items || [], false)
           }
         </div>
       `).join('')}
@@ -646,14 +649,29 @@ function renderResults(laneData) {
     // Single user — no tabs
     results.innerHTML = `
       ${statCardsHtml}
-      ${renderLaneTable(laneData, false)}
+      ${renderLaneAccordion(laneData, false)}
     `;
   }
+
+  // Wire accordion toggles
+  wireAccordionToggles();
 
   // Set bar widths via JS (percentage-based)
   document.querySelectorAll('.til-bar-segment').forEach(seg => {
     const pct = parseFloat(seg.dataset.pct) || 0;
     seg.style.width = pct + '%';
+  });
+}
+
+function wireAccordionToggles() {
+  document.querySelectorAll('.til-accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      header.classList.toggle('expanded');
+      const body = header.nextElementSibling;
+      if (body && body.classList.contains('til-accordion-body')) {
+        body.classList.toggle('d-none');
+      }
+    });
   });
 }
 
@@ -680,7 +698,9 @@ function renderStatCards(avgLanes, issueCount) {
   `;
 }
 
-function renderLaneTable(items, showAssignee) {
+/* ── Task-Accordion Table ────────────────────────── */
+
+function renderLaneAccordion(items, showAssignee) {
   if (!items.length) {
     return `
       <div class="card mb-300">
@@ -701,9 +721,8 @@ function renderLaneTable(items, showAssignee) {
     siteGroups.get(key).items.push(d);
   });
   const multiSite = siteGroups.size > 1;
-  const colSpan = showAssignee ? 8 : 7;
 
-  return `
+  let html = `
     <div class="card mb-300">
       <h3 class="text-heading-small mb-150">Lane Breakdown</h3>
       <div class="til-legend">
@@ -712,55 +731,225 @@ function renderLaneTable(items, showAssignee) {
         <span class="til-legend-item"><span class="til-legend-dot til-dot-review"></span> In Review</span>
         <span class="til-legend-item"><span class="til-legend-dot til-dot-done"></span> Done</span>
       </div>
-      <div class="table-container">
-        <table class="table til-table">
-          <thead>
-            <tr>
-              <th>Key</th>
-              <th>Summary</th>
-              ${showAssignee ? '<th>Assignee</th>' : ''}
-              <th class="til-bar-header">Lane Distribution</th>
-              <th>To Do</th>
-              <th>In Progress</th>
-              <th>In Review</th>
-              <th>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${Array.from(siteGroups.values()).map(group => `
-              ${multiSite ? `<tr class="ct-site-group-row"><td colspan="${colSpan}"><div class="wl-site-group-title">${group.siteName}</div></td></tr>` : ''}
-              ${group.items.map(d => {
-                const total = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
-                const pctTodo = total > 0 ? (d.lanes[LANE_TODO] / total * 100) : 0;
-                const pctProgress = total > 0 ? (d.lanes[LANE_IN_PROGRESS] / total * 100) : 0;
-                const pctReview = total > 0 ? (d.lanes[LANE_IN_REVIEW] / total * 100) : 0;
-                const pctDone = total > 0 ? (d.lanes[LANE_DONE] / total * 100) : 0;
-                const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
-                return `
-                <tr>
-                  <td><a href="${group.siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a></td>
-                  <td class="text-truncate ct-summary-cell">${d.issue.fields?.summary || ''}</td>
-                  ${showAssignee ? `<td class="til-assignee-cell">${assigneeName}</td>` : ''}
-                  <td class="til-bar-cell">
-                    <div class="til-bar">
-                      <div class="til-bar-segment til-seg-todo" data-pct="${pctTodo.toFixed(1)}"></div>
-                      <div class="til-bar-segment til-seg-progress" data-pct="${pctProgress.toFixed(1)}"></div>
-                      <div class="til-bar-segment til-seg-review" data-pct="${pctReview.toFixed(1)}"></div>
-                      <div class="til-bar-segment til-seg-done" data-pct="${pctDone.toFixed(1)}"></div>
-                    </div>
-                  </td>
-                  <td class="til-time-cell">${formatMs(d.lanes[LANE_TODO])}</td>
-                  <td class="til-time-cell">${formatMs(d.lanes[LANE_IN_PROGRESS])}</td>
-                  <td class="til-time-cell">${formatMs(d.lanes[LANE_IN_REVIEW])}</td>
-                  <td class="til-time-cell"><span class="wl-time-badge">${formatMs(total)}</span></td>
-                </tr>`;
-              }).join('')}
-            `).join('')}
-          </tbody>
-        </table>
+  `;
+
+  for (const [, group] of siteGroups) {
+    if (multiSite) {
+      html += `<div class="wl-site-group-title">${group.siteName}</div>`;
+    }
+
+    // Group items by parent task
+    const taskGroups = buildTaskGroups(group.items);
+
+    taskGroups.forEach(tg => {
+      if (tg.subtasks.length === 0) {
+        // Solo issue — no accordion, just a flat row
+        html += renderSoloRow(tg.parent, group.siteUrl, showAssignee);
+      } else {
+        // Accordion: parent header + subtask body
+        html += renderTaskAccordion(tg, group.siteUrl, showAssignee);
+      }
+    });
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+/**
+ * Group items into parent→subtask hierarchy.
+ * 
+ * An issue is a "subtask" if issue.fields.parent exists.
+ * If the parent key itself is also in the items list, group them.
+ * Otherwise, use the parent key/summary from the subtask's parent field.
+ * Issues without a parent become standalone entries.
+ */
+function buildTaskGroups(items) {
+  const byKey = new Map();  // key → laneData item
+  const subtaskOf = new Map(); // subtask key → parent key
+
+  // First pass: index all issues and identify subtasks
+  items.forEach(d => {
+    byKey.set(d.issue.key, d);
+    if (d.issue.fields?.parent) {
+      subtaskOf.set(d.issue.key, d.issue.fields.parent.key);
+    }
+  });
+
+  // Build groups: parentKey → { parent info, subtasks[] }
+  const groups = new Map();
+  const consumed = new Set();
+
+  items.forEach(d => {
+    if (subtaskOf.has(d.issue.key)) {
+      // This issue is a subtask
+      const parentKey = subtaskOf.get(d.issue.key);
+      if (!groups.has(parentKey)) {
+        // Create group from parent data (either from items list or from the subtask's parent field)
+        const parentItem = byKey.get(parentKey);
+        groups.set(parentKey, {
+          parent: parentItem || {
+            issue: {
+              key: parentKey,
+              fields: {
+                summary: d.issue.fields.parent.fields?.summary || parentKey,
+                assignee: null,
+                issuetype: d.issue.fields.parent.fields?.issuetype || null,
+              },
+              _site: d.issue._site,
+            },
+            lanes: null, // Will compute as sum
+          },
+          subtasks: [],
+          parentInItems: !!parentItem,
+        });
+        if (parentItem) consumed.add(parentKey);
+      }
+      groups.get(parentKey).subtasks.push(d);
+      consumed.add(d.issue.key);
+    }
+  });
+
+  // Second pass: add standalone issues (not a subtask, not consumed as a parent)
+  items.forEach(d => {
+    if (!consumed.has(d.issue.key)) {
+      groups.set(d.issue.key, { parent: d, subtasks: [], parentInItems: true });
+    }
+  });
+
+  // Compute aggregate lanes for parents with subtasks
+  for (const [, tg] of groups) {
+    if (tg.subtasks.length > 0) {
+      const aggLanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
+      tg.subtasks.forEach(st => {
+        LANE_ORDER.forEach(l => { aggLanes[l] += st.lanes[l]; });
+      });
+      // If parent has its own lane data, add it too
+      if (tg.parent.lanes) {
+        LANE_ORDER.forEach(l => { aggLanes[l] += tg.parent.lanes[l]; });
+      }
+      tg.aggLanes = aggLanes;
+    }
+  }
+
+  return Array.from(groups.values());
+}
+
+function renderLaneBarHtml(lanes) {
+  const total = LANE_ORDER.reduce((s, l) => s + lanes[l], 0);
+  const pctTodo = total > 0 ? (lanes[LANE_TODO] / total * 100) : 0;
+  const pctProgress = total > 0 ? (lanes[LANE_IN_PROGRESS] / total * 100) : 0;
+  const pctReview = total > 0 ? (lanes[LANE_IN_REVIEW] / total * 100) : 0;
+  const pctDone = total > 0 ? (lanes[LANE_DONE] / total * 100) : 0;
+  return `
+    <div class="til-bar">
+      <div class="til-bar-segment til-seg-todo" data-pct="${pctTodo.toFixed(1)}"></div>
+      <div class="til-bar-segment til-seg-progress" data-pct="${pctProgress.toFixed(1)}"></div>
+      <div class="til-bar-segment til-seg-review" data-pct="${pctReview.toFixed(1)}"></div>
+      <div class="til-bar-segment til-seg-done" data-pct="${pctDone.toFixed(1)}"></div>
+    </div>
+  `;
+}
+
+function renderSoloRow(d, siteUrl, showAssignee) {
+  const total = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
+  const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
+  return `
+    <div class="til-solo-row">
+      <div class="til-row-main">
+        <a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a>
+        <span class="til-row-summary">${d.issue.fields?.summary || ''}</span>
+        ${showAssignee ? `<span class="til-row-assignee">${assigneeName}</span>` : ''}
+      </div>
+      <div class="til-row-bar">${renderLaneBarHtml(d.lanes)}</div>
+      <div class="til-row-times">
+        <span class="til-time-val">${formatMs(d.lanes[LANE_TODO])}</span>
+        <span class="til-time-val">${formatMs(d.lanes[LANE_IN_PROGRESS])}</span>
+        <span class="til-time-val">${formatMs(d.lanes[LANE_IN_REVIEW])}</span>
+        <span class="til-time-val til-time-total"><span class="wl-time-badge">${formatMs(total)}</span></span>
       </div>
     </div>
   `;
+}
+
+function renderTaskAccordion(tg, siteUrl, showAssignee) {
+  const lanes = tg.aggLanes || tg.parent.lanes || { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
+  const total = LANE_ORDER.reduce((s, l) => s + lanes[l], 0);
+  const parentKey = tg.parent.issue.key;
+  const parentSummary = tg.parent.issue.fields?.summary || '';
+
+  let html = `
+    <div class="til-accordion-item">
+      <button class="til-accordion-header" type="button">
+        <div class="til-accordion-left">
+          <svg class="til-accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          <a href="${siteUrl}/browse/${parentKey}" target="_blank" rel="noopener" class="wl-issue-key" onclick="event.stopPropagation()">${parentKey}</a>
+          <span class="til-row-summary">${parentSummary}</span>
+          <span class="til-subtask-count">${tg.subtasks.length} subtask${tg.subtasks.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="til-accordion-right">
+          <div class="til-row-bar">${renderLaneBarHtml(lanes)}</div>
+          <div class="til-row-times">
+            <span class="til-time-val">${formatMs(lanes[LANE_TODO])}</span>
+            <span class="til-time-val">${formatMs(lanes[LANE_IN_PROGRESS])}</span>
+            <span class="til-time-val">${formatMs(lanes[LANE_IN_REVIEW])}</span>
+            <span class="til-time-val til-time-total"><span class="wl-time-badge">${formatMs(total)}</span></span>
+          </div>
+        </div>
+      </button>
+      <div class="til-accordion-body d-none">
+        <div class="table-container">
+          <table class="table til-table til-subtask-table">
+            <thead>
+              <tr>
+                <th>Key</th>
+                <th>Summary</th>
+                ${showAssignee ? '<th>Assignee</th>' : ''}
+                <th class="til-bar-header">Lane Distribution</th>
+                <th>To Do</th>
+                <th>In Progress</th>
+                <th>In Review</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+  `;
+
+  tg.subtasks.forEach(d => {
+    const stTotal = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
+    const pctTodo = stTotal > 0 ? (d.lanes[LANE_TODO] / stTotal * 100) : 0;
+    const pctProgress = stTotal > 0 ? (d.lanes[LANE_IN_PROGRESS] / stTotal * 100) : 0;
+    const pctReview = stTotal > 0 ? (d.lanes[LANE_IN_REVIEW] / stTotal * 100) : 0;
+    const pctDone = stTotal > 0 ? (d.lanes[LANE_DONE] / stTotal * 100) : 0;
+    const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
+    html += `
+              <tr>
+                <td><a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a></td>
+                <td class="text-truncate ct-summary-cell">${d.issue.fields?.summary || ''}</td>
+                ${showAssignee ? `<td class="til-assignee-cell">${assigneeName}</td>` : ''}
+                <td class="til-bar-cell">
+                  <div class="til-bar">
+                    <div class="til-bar-segment til-seg-todo" data-pct="${pctTodo.toFixed(1)}"></div>
+                    <div class="til-bar-segment til-seg-progress" data-pct="${pctProgress.toFixed(1)}"></div>
+                    <div class="til-bar-segment til-seg-review" data-pct="${pctReview.toFixed(1)}"></div>
+                    <div class="til-bar-segment til-seg-done" data-pct="${pctDone.toFixed(1)}"></div>
+                  </div>
+                </td>
+                <td class="til-time-cell">${formatMs(d.lanes[LANE_TODO])}</td>
+                <td class="til-time-cell">${formatMs(d.lanes[LANE_IN_PROGRESS])}</td>
+                <td class="til-time-cell">${formatMs(d.lanes[LANE_IN_REVIEW])}</td>
+                <td class="til-time-cell"><span class="wl-time-badge">${formatMs(stTotal)}</span></td>
+              </tr>`;
+  });
+
+  html += `
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  return html;
 }
 
 /* ── Excel export ──────────────────────────────── */
@@ -795,7 +984,7 @@ async function exportToExcel() {
     right: { style: 'thin', color: { argb: 'FFD0D0D0' } },
   };
   const centerAlign = { horizontal: 'center', vertical: 'middle' };
-  const headers = ['Key', 'Summary', 'Assignee', 'To Do', 'In Progress', 'In Review', 'Total'];
+  const headers = ['Key', 'Summary', 'Assignee', 'Parent', 'To Do', 'In Progress', 'In Review', 'Total'];
   const colCount = headers.length;
 
   // Title row
@@ -819,10 +1008,12 @@ async function exportToExcel() {
   laneData.forEach(d => {
     const total = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
     const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
+    const parentKey = d.issue.fields?.parent?.key || '';
     const row = ws.addRow([
       d.issue.key,
       d.issue.fields?.summary || '',
       assigneeName,
+      parentKey,
       formatMs(d.lanes[LANE_TODO]),
       formatMs(d.lanes[LANE_IN_PROGRESS]),
       formatMs(d.lanes[LANE_IN_REVIEW]),
@@ -830,7 +1021,7 @@ async function exportToExcel() {
     ]);
     row.eachCell((cell, colNum) => {
       cell.border = border;
-      cell.alignment = colNum >= 4 ? centerAlign : { vertical: 'middle' };
+      cell.alignment = colNum >= 5 ? centerAlign : { vertical: 'middle' };
       cell.font = { size: 11 };
     });
   });
@@ -889,6 +1080,126 @@ function injectTimeInLaneStyles() {
       flex-shrink: 0;
     }
 
+    /* ── Solo row (standalone issue, no subtasks) ──── */
+    .til-solo-row {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-150);
+      padding: var(--ds-space-100) var(--ds-space-150);
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-200);
+      margin-bottom: var(--ds-space-100);
+      background: var(--ds-surface);
+      transition: background var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .til-solo-row:hover {
+      background: var(--ds-surface-hovered);
+    }
+    .til-row-main {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+      flex: 1;
+      min-width: 0;
+    }
+    .til-row-summary {
+      font: var(--ds-font-body);
+      color: var(--ds-text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .til-row-assignee {
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtle);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .til-row-bar {
+      flex-shrink: 0;
+      width: 160px;
+    }
+    .til-row-times {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-150);
+      flex-shrink: 0;
+    }
+    .til-time-val {
+      font: var(--ds-font-body-small);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+      min-width: 52px;
+      color: var(--ds-text-subtle);
+    }
+    .til-time-total {
+      min-width: 60px;
+    }
+
+    /* ── Accordion: Parent task with subtasks ──────── */
+    .til-accordion-item {
+      border: 1px solid var(--ds-border);
+      border-radius: var(--ds-radius-200);
+      margin-bottom: var(--ds-space-100);
+      overflow: hidden;
+    }
+    .til-accordion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--ds-space-150);
+      width: 100%;
+      padding: var(--ds-space-100) var(--ds-space-150);
+      background: var(--ds-surface);
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      color: var(--ds-text);
+      transition: background-color var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .til-accordion-header:hover {
+      background: var(--ds-surface-hovered);
+    }
+    .til-accordion-left {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+      min-width: 0;
+      flex: 1;
+    }
+    .til-accordion-right {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-150);
+      flex-shrink: 0;
+    }
+    .til-accordion-chevron {
+      flex-shrink: 0;
+      color: var(--ds-icon-subtle);
+      transition: transform var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .til-accordion-header.expanded .til-accordion-chevron {
+      transform: rotate(180deg);
+    }
+    .til-subtask-count {
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtlest);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .til-accordion-body {
+      border-top: 1px solid var(--ds-border);
+      background: var(--ds-surface-sunken);
+    }
+    .til-accordion-body .table {
+      margin: 0;
+    }
+    .til-accordion-body .table th {
+      background: var(--ds-surface-sunken);
+    }
+
     /* ── Table spacing fix ──────────────────────────── */
     .til-table th,
     .til-table td {
@@ -907,7 +1218,7 @@ function injectTimeInLaneStyles() {
       font: var(--ds-font-body-small);
     }
     .til-table .til-bar-cell {
-      min-width: 200px;
+      min-width: 160px;
       padding: 10px 12px;
     }
     .til-table .til-time-cell {
@@ -925,15 +1236,6 @@ function injectTimeInLaneStyles() {
       max-width: 160px;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    /* ── Selected users in popover ─────────────────── */
-    .wl-selected-avatar {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
     }
   `;
   document.head.appendChild(style);
