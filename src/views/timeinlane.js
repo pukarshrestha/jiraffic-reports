@@ -432,7 +432,8 @@ const LANE_TODO = 'To Do';
 const LANE_IN_PROGRESS = 'In Progress';
 const LANE_IN_REVIEW = 'In Review';
 const LANE_DONE = 'Done';
-const LANE_ORDER = [LANE_TODO, LANE_IN_PROGRESS, LANE_IN_REVIEW, LANE_DONE];
+const LANE_ORDER = [LANE_TODO, LANE_IN_PROGRESS, LANE_IN_REVIEW];
+const LANE_ORDER_ALL = [LANE_TODO, LANE_IN_PROGRESS, LANE_IN_REVIEW, LANE_DONE];
 
 async function generateReport() {
   if (selectedUsers.length === 0) {
@@ -517,7 +518,7 @@ async function generateReport() {
  */
 function computeLaneTimes(issue) {
   const histories = issue.changelog?.histories || [];
-  const lanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
+  const lanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 }; // keep Done internally for bar calculations
   const statusChanges = [];
 
   histories.forEach(h => {
@@ -567,8 +568,8 @@ function classifyStatus(statusName) {
 function renderResults(laneData) {
   const results = document.getElementById('til-results');
 
-  // Summary averages (global)
-  const avgLanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
+  // Summary averages (global) — only To Do, In Progress, In Review
+  const avgLanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0 };
   laneData.forEach(d => {
     LANE_ORDER.forEach(lane => { avgLanes[lane] += d.lanes[lane]; });
   });
@@ -664,13 +665,14 @@ function renderResults(laneData) {
 }
 
 function wireAccordionToggles() {
-  document.querySelectorAll('.til-accordion-header').forEach(header => {
-    header.addEventListener('click', () => {
-      header.classList.toggle('expanded');
-      const body = header.nextElementSibling;
-      if (body && body.classList.contains('til-accordion-body')) {
-        body.classList.toggle('d-none');
-      }
+  document.querySelectorAll('.til-accordion-toggle').forEach(row => {
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('a')) return; // don't toggle on link click
+      const groupId = row.dataset.group;
+      row.classList.toggle('expanded');
+      document.querySelectorAll(`tr[data-parent="${groupId}"]`).forEach(sub => {
+        sub.classList.toggle('d-none');
+      });
     });
   });
 }
@@ -698,6 +700,21 @@ function renderStatCards(avgLanes, issueCount) {
   `;
 }
 
+function renderTableHeader(showAssignee) {
+  return `
+    <tr>
+      <th class="til-col-key">Key</th>
+      <th class="til-col-summary">Summary</th>
+      ${showAssignee ? '<th class="til-col-assignee">Assignee</th>' : ''}
+      <th class="til-col-bar">Lane Distribution</th>
+      <th class="til-col-time">To Do</th>
+      <th class="til-col-time">In Progress</th>
+      <th class="til-col-time">In Review</th>
+      <th class="til-col-total">Total</th>
+    </tr>
+  `;
+}
+
 /* ── Task-Accordion Table ────────────────────────── */
 
 function renderLaneAccordion(items, showAssignee) {
@@ -720,7 +737,7 @@ function renderLaneAccordion(items, showAssignee) {
     if (!siteGroups.has(key)) siteGroups.set(key, { siteName, siteUrl, items: [] });
     siteGroups.get(key).items.push(d);
   });
-  const multiSite = siteGroups.size > 1;
+  const colSpan = showAssignee ? 8 : 7;
 
   let html = `
     <div class="card mb-300">
@@ -729,27 +746,39 @@ function renderLaneAccordion(items, showAssignee) {
         <span class="til-legend-item"><span class="til-legend-dot til-dot-todo"></span> To Do</span>
         <span class="til-legend-item"><span class="til-legend-dot til-dot-progress"></span> In Progress</span>
         <span class="til-legend-item"><span class="til-legend-dot til-dot-review"></span> In Review</span>
-        <span class="til-legend-item"><span class="til-legend-dot til-dot-done"></span> Done</span>
       </div>
   `;
 
   for (const [, group] of siteGroups) {
-    if (multiSite) {
-      html += `<div class="wl-site-group-title">${group.siteName}</div>`;
-    }
+    // Single table per site group with sticky header
+    html += `
+      <div class="table-container til-table-wrapper">
+        <table class="table til-table">
+          <thead class="til-sticky-head">
+            <tr class="til-site-row"><td colspan="${colSpan}"><div class="wl-site-group-title">${group.siteName}</div></td></tr>
+            ${renderTableHeader(showAssignee)}
+          </thead>
+          <tbody>
+    `;
 
     // Group items by parent task
     const taskGroups = buildTaskGroups(group.items);
+    let rowIdx = 0;
 
     taskGroups.forEach(tg => {
       if (tg.subtasks.length === 0) {
-        // Solo issue — no accordion, just a flat row
-        html += renderSoloRow(tg.parent, group.siteUrl, showAssignee);
+        html += renderSoloRow(tg.parent, group.siteUrl, showAssignee, rowIdx);
       } else {
-        // Accordion: parent header + subtask body
-        html += renderTaskAccordion(tg, group.siteUrl, showAssignee);
+        html += renderTaskAccordion(tg, group.siteUrl, showAssignee, rowIdx);
       }
+      rowIdx++;
     });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
   }
 
   html += `</div>`;
@@ -822,11 +851,11 @@ function buildTaskGroups(items) {
     if (tg.subtasks.length > 0) {
       const aggLanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
       tg.subtasks.forEach(st => {
-        LANE_ORDER.forEach(l => { aggLanes[l] += st.lanes[l]; });
+        LANE_ORDER_ALL.forEach(l => { aggLanes[l] += st.lanes[l]; });
       });
       // If parent has its own lane data, add it too
       if (tg.parent.lanes) {
-        LANE_ORDER.forEach(l => { aggLanes[l] += tg.parent.lanes[l]; });
+        LANE_ORDER_ALL.forEach(l => { aggLanes[l] += tg.parent.lanes[l]; });
       }
       tg.aggLanes = aggLanes;
     }
@@ -836,119 +865,83 @@ function buildTaskGroups(items) {
 }
 
 function renderLaneBarHtml(lanes) {
-  const total = LANE_ORDER.reduce((s, l) => s + lanes[l], 0);
+  const total = LANE_ORDER_ALL.reduce((s, l) => s + lanes[l], 0);
   const pctTodo = total > 0 ? (lanes[LANE_TODO] / total * 100) : 0;
   const pctProgress = total > 0 ? (lanes[LANE_IN_PROGRESS] / total * 100) : 0;
   const pctReview = total > 0 ? (lanes[LANE_IN_REVIEW] / total * 100) : 0;
-  const pctDone = total > 0 ? (lanes[LANE_DONE] / total * 100) : 0;
   return `
     <div class="til-bar">
       <div class="til-bar-segment til-seg-todo" data-pct="${pctTodo.toFixed(1)}"></div>
       <div class="til-bar-segment til-seg-progress" data-pct="${pctProgress.toFixed(1)}"></div>
       <div class="til-bar-segment til-seg-review" data-pct="${pctReview.toFixed(1)}"></div>
-      <div class="til-bar-segment til-seg-done" data-pct="${pctDone.toFixed(1)}"></div>
     </div>
   `;
 }
 
-function renderSoloRow(d, siteUrl, showAssignee) {
+function renderSoloRow(d, siteUrl, showAssignee, rowIdx) {
   const total = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
   const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
   return `
-    <div class="til-solo-row">
-      <div class="til-row-main">
-        <a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a>
-        <span class="til-row-summary">${d.issue.fields?.summary || ''}</span>
-        ${showAssignee ? `<span class="til-row-assignee">${assigneeName}</span>` : ''}
-      </div>
-      <div class="til-row-bar">${renderLaneBarHtml(d.lanes)}</div>
-      <div class="til-row-times">
-        <span class="til-time-val">${formatMs(d.lanes[LANE_TODO])}</span>
-        <span class="til-time-val">${formatMs(d.lanes[LANE_IN_PROGRESS])}</span>
-        <span class="til-time-val">${formatMs(d.lanes[LANE_IN_REVIEW])}</span>
-        <span class="til-time-val til-time-total"><span class="wl-time-badge">${formatMs(total)}</span></span>
-      </div>
-    </div>
+    <tr class="til-parent-row">
+      <td class="til-col-key"><a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a></td>
+      <td class="til-col-summary text-truncate">${d.issue.fields?.summary || ''}</td>
+      ${showAssignee ? `<td class="til-col-assignee til-assignee-cell">${assigneeName}</td>` : ''}
+      <td class="til-col-bar til-bar-cell">${renderLaneBarHtml(d.lanes)}</td>
+      <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_TODO])}</td>
+      <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_IN_PROGRESS])}</td>
+      <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_IN_REVIEW])}</td>
+      <td class="til-col-total til-time-cell"><span class="wl-time-badge">${formatMs(total)}</span></td>
+    </tr>
   `;
 }
 
-function renderTaskAccordion(tg, siteUrl, showAssignee) {
+function renderTaskAccordion(tg, siteUrl, showAssignee, rowIdx) {
   const lanes = tg.aggLanes || tg.parent.lanes || { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0, [LANE_DONE]: 0 };
   const total = LANE_ORDER.reduce((s, l) => s + lanes[l], 0);
   const parentKey = tg.parent.issue.key;
   const parentSummary = tg.parent.issue.fields?.summary || '';
+  const groupId = `tg-${parentKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
   let html = `
-    <div class="til-accordion-item">
-      <button class="til-accordion-header" type="button">
-        <div class="til-accordion-left">
-          <svg class="til-accordion-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+    <tr class="til-parent-row til-accordion-toggle" data-group="${groupId}">
+      <td class="til-col-key">
+        <div class="til-key-with-chevron">
+          <svg class="til-accordion-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
           <a href="${siteUrl}/browse/${parentKey}" target="_blank" rel="noopener" class="wl-issue-key" onclick="event.stopPropagation()">${parentKey}</a>
-          <span class="til-row-summary">${parentSummary}</span>
+        </div>
+      </td>
+      <td class="til-col-summary">
+        <div class="til-summary-with-badge">
+          <span class="text-truncate">${parentSummary}</span>
           <span class="til-subtask-count">${tg.subtasks.length} subtask${tg.subtasks.length !== 1 ? 's' : ''}</span>
         </div>
-        <div class="til-accordion-right">
-          <div class="til-row-bar">${renderLaneBarHtml(lanes)}</div>
-          <div class="til-row-times">
-            <span class="til-time-val">${formatMs(lanes[LANE_TODO])}</span>
-            <span class="til-time-val">${formatMs(lanes[LANE_IN_PROGRESS])}</span>
-            <span class="til-time-val">${formatMs(lanes[LANE_IN_REVIEW])}</span>
-            <span class="til-time-val til-time-total"><span class="wl-time-badge">${formatMs(total)}</span></span>
-          </div>
-        </div>
-      </button>
-      <div class="til-accordion-body d-none">
-        <div class="table-container">
-          <table class="table til-table til-subtask-table">
-            <thead>
-              <tr>
-                <th>Key</th>
-                <th>Summary</th>
-                ${showAssignee ? '<th>Assignee</th>' : ''}
-                <th class="til-bar-header">Lane Distribution</th>
-                <th>To Do</th>
-                <th>In Progress</th>
-                <th>In Review</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
+      </td>
+      ${showAssignee ? '<td class="til-col-assignee"></td>' : ''}
+      <td class="til-col-bar til-bar-cell">${renderLaneBarHtml(lanes)}</td>
+      <td class="til-col-time til-time-cell">${formatMs(lanes[LANE_TODO])}</td>
+      <td class="til-col-time til-time-cell">${formatMs(lanes[LANE_IN_PROGRESS])}</td>
+      <td class="til-col-time til-time-cell">${formatMs(lanes[LANE_IN_REVIEW])}</td>
+      <td class="til-col-total til-time-cell"><span class="wl-time-badge">${formatMs(total)}</span></td>
+    </tr>
   `;
 
+  // Subtask rows (hidden by default)
   tg.subtasks.forEach(d => {
     const stTotal = LANE_ORDER.reduce((s, l) => s + d.lanes[l], 0);
-    const pctTodo = stTotal > 0 ? (d.lanes[LANE_TODO] / stTotal * 100) : 0;
-    const pctProgress = stTotal > 0 ? (d.lanes[LANE_IN_PROGRESS] / stTotal * 100) : 0;
-    const pctReview = stTotal > 0 ? (d.lanes[LANE_IN_REVIEW] / stTotal * 100) : 0;
-    const pctDone = stTotal > 0 ? (d.lanes[LANE_DONE] / stTotal * 100) : 0;
     const assigneeName = d.issue.fields?.assignee?.displayName || 'Unassigned';
     html += `
-              <tr>
-                <td><a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a></td>
-                <td class="text-truncate ct-summary-cell">${d.issue.fields?.summary || ''}</td>
-                ${showAssignee ? `<td class="til-assignee-cell">${assigneeName}</td>` : ''}
-                <td class="til-bar-cell">
-                  <div class="til-bar">
-                    <div class="til-bar-segment til-seg-todo" data-pct="${pctTodo.toFixed(1)}"></div>
-                    <div class="til-bar-segment til-seg-progress" data-pct="${pctProgress.toFixed(1)}"></div>
-                    <div class="til-bar-segment til-seg-review" data-pct="${pctReview.toFixed(1)}"></div>
-                    <div class="til-bar-segment til-seg-done" data-pct="${pctDone.toFixed(1)}"></div>
-                  </div>
-                </td>
-                <td class="til-time-cell">${formatMs(d.lanes[LANE_TODO])}</td>
-                <td class="til-time-cell">${formatMs(d.lanes[LANE_IN_PROGRESS])}</td>
-                <td class="til-time-cell">${formatMs(d.lanes[LANE_IN_REVIEW])}</td>
-                <td class="til-time-cell"><span class="wl-time-badge">${formatMs(stTotal)}</span></td>
-              </tr>`;
+    <tr class="til-subtask-row d-none" data-parent="${groupId}">
+      <td class="til-col-key til-indent"><a href="${siteUrl}/browse/${d.issue.key}" target="_blank" rel="noopener" class="wl-issue-key">${d.issue.key}</a></td>
+      <td class="til-col-summary text-truncate">${d.issue.fields?.summary || ''}</td>
+      ${showAssignee ? `<td class="til-col-assignee til-assignee-cell">${assigneeName}</td>` : ''}
+      <td class="til-col-bar til-bar-cell">${renderLaneBarHtml(d.lanes)}</td>
+      <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_TODO])}</td>
+      <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_IN_PROGRESS])}</td>
+      <td class="til-col-time til-time-cell">${formatMs(d.lanes[LANE_IN_REVIEW])}</td>
+      <td class="til-col-total til-time-cell"><span class="wl-time-badge">${formatMs(stTotal)}</span></td>
+    </tr>`;
   });
 
-  html += `
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  `;
   return html;
 }
 
@@ -1080,127 +1073,25 @@ function injectTimeInLaneStyles() {
       flex-shrink: 0;
     }
 
-    /* ── Solo row (standalone issue, no subtasks) ──── */
-    .til-solo-row {
-      display: flex;
-      align-items: center;
-      gap: var(--ds-space-150);
-      padding: var(--ds-space-100) var(--ds-space-150);
-      border: 1px solid var(--ds-border);
-      border-radius: var(--ds-radius-200);
-      margin-bottom: var(--ds-space-100);
-      background: var(--ds-surface);
-      transition: background var(--ds-duration-fast) var(--ds-easing-standard);
+    /* ── Sticky table header ─────────────────────────── */
+    .til-table-wrapper {
+      position: relative;
+      margin-bottom: var(--ds-space-200);
     }
-    .til-solo-row:hover {
-      background: var(--ds-surface-hovered);
+    .til-sticky-head {
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
-    .til-row-main {
-      display: flex;
-      align-items: center;
-      gap: var(--ds-space-100);
-      flex: 1;
-      min-width: 0;
+    .til-sticky-head th {
+      background: var(--ds-surface) !important;
     }
-    .til-row-summary {
-      font: var(--ds-font-body);
-      color: var(--ds-text);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      flex: 1;
-      min-width: 0;
-    }
-    .til-row-assignee {
-      font: var(--ds-font-body-small);
-      color: var(--ds-text-subtle);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .til-row-bar {
-      flex-shrink: 0;
-      width: 160px;
-    }
-    .til-row-times {
-      display: flex;
-      align-items: center;
-      gap: var(--ds-space-150);
-      flex-shrink: 0;
-    }
-    .til-time-val {
-      font: var(--ds-font-body-small);
-      font-variant-numeric: tabular-nums;
-      text-align: right;
-      min-width: 52px;
-      color: var(--ds-text-subtle);
-    }
-    .til-time-total {
-      min-width: 60px;
+    .til-site-row td {
+      padding: 0 !important;
+      border-bottom: none !important;
     }
 
-    /* ── Accordion: Parent task with subtasks ──────── */
-    .til-accordion-item {
-      border: 1px solid var(--ds-border);
-      border-radius: var(--ds-radius-200);
-      margin-bottom: var(--ds-space-100);
-      overflow: hidden;
-    }
-    .til-accordion-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: var(--ds-space-150);
-      width: 100%;
-      padding: var(--ds-space-100) var(--ds-space-150);
-      background: var(--ds-surface);
-      border: none;
-      cursor: pointer;
-      text-align: left;
-      color: var(--ds-text);
-      transition: background-color var(--ds-duration-fast) var(--ds-easing-standard);
-    }
-    .til-accordion-header:hover {
-      background: var(--ds-surface-hovered);
-    }
-    .til-accordion-left {
-      display: flex;
-      align-items: center;
-      gap: var(--ds-space-100);
-      min-width: 0;
-      flex: 1;
-    }
-    .til-accordion-right {
-      display: flex;
-      align-items: center;
-      gap: var(--ds-space-150);
-      flex-shrink: 0;
-    }
-    .til-accordion-chevron {
-      flex-shrink: 0;
-      color: var(--ds-icon-subtle);
-      transition: transform var(--ds-duration-fast) var(--ds-easing-standard);
-    }
-    .til-accordion-header.expanded .til-accordion-chevron {
-      transform: rotate(180deg);
-    }
-    .til-subtask-count {
-      font: var(--ds-font-body-small);
-      color: var(--ds-text-subtlest);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-    .til-accordion-body {
-      border-top: 1px solid var(--ds-border);
-      background: var(--ds-surface-sunken);
-    }
-    .til-accordion-body .table {
-      margin: 0;
-    }
-    .til-accordion-body .table th {
-      background: var(--ds-surface-sunken);
-    }
-
-    /* ── Table spacing fix ──────────────────────────── */
+    /* ── Table base ────────────────────────────────── */
     .til-table th,
     .til-table td {
       padding: 10px 12px;
@@ -1217,18 +1108,84 @@ function injectTimeInLaneStyles() {
     .til-table td {
       font: var(--ds-font-body-small);
     }
-    .til-table .til-bar-cell {
-      min-width: 160px;
-      padding: 10px 12px;
-    }
+
+    /* ── Column widths ────────────────────────────── */
+    .til-col-key { width: 100px; white-space: nowrap; }
+    .til-col-summary { min-width: 200px; max-width: 350px; }
+    .til-col-assignee { width: 140px; }
+    .til-col-bar { min-width: 160px; }
+    .til-col-time { width: 90px; white-space: nowrap; }
+    .til-col-total { width: 80px; white-space: nowrap; }
+
+    /* ── Time cells: left-aligned ─────────────────── */
     .til-table .til-time-cell {
       white-space: nowrap;
-      text-align: right;
+      text-align: left;
       font-variant-numeric: tabular-nums;
     }
-    .til-table .ct-summary-cell {
-      max-width: 280px;
+    .til-table .til-bar-cell {
+      min-width: 160px;
     }
+
+    /* ── Parent rows ──────────────────────────────── */
+    .til-parent-row {
+      background: var(--ds-surface);
+      transition: background-color var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .til-parent-row:hover {
+      background: var(--ds-surface-hovered);
+    }
+    .til-accordion-toggle {
+      cursor: pointer;
+    }
+
+    /* ── Key + chevron layout ─────────────────────── */
+    .til-key-with-chevron {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .til-accordion-chevron {
+      flex-shrink: 0;
+      color: var(--ds-icon-subtle);
+      transition: transform var(--ds-duration-fast) var(--ds-easing-standard);
+    }
+    .til-accordion-toggle.expanded .til-accordion-chevron {
+      transform: rotate(180deg);
+    }
+
+    /* ── Summary + badge layout ───────────────────── */
+    .til-summary-with-badge {
+      display: flex;
+      align-items: center;
+      gap: var(--ds-space-100);
+    }
+    .til-summary-with-badge .text-truncate {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .til-subtask-count {
+      font: var(--ds-font-body-small);
+      color: var(--ds-text-subtlest);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* ── Subtask rows ─────────────────────────────── */
+    .til-subtask-row {
+      background: var(--ds-surface-sunken);
+    }
+    .til-subtask-row:hover {
+      background: var(--ds-background-neutral-subtle-hovered);
+    }
+    .til-indent {
+      padding-left: 36px !important;
+    }
+
+    /* ── Assignee cell ────────────────────────────── */
     .til-assignee-cell {
       white-space: nowrap;
       font: var(--ds-font-body-small);
