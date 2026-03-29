@@ -465,17 +465,29 @@ async function generateReport() {
       return;
     }
 
+    // Compute previous-month date range
+    const curFrom = new Date(dateFrom + 'T00:00:00');
+    const prevEnd = new Date(curFrom.getTime() - 86400000); // day before current dateFrom
+    const prevStart = new Date(prevEnd.getFullYear(), prevEnd.getMonth(), 1);
+    const prevDateFrom = formatDate(prevStart);
+    const prevDateTo = formatDate(prevEnd);
+    const prevSiteJqls = buildUserLaneTimeJqlPerSite(selectedUsers, prevDateFrom, prevDateTo);
+
     // Progress callback to update loading text
     const onProgress = ({ message }) => {
       const progressEl = document.querySelector('.wl-loading-progress');
       if (progressEl) progressEl.textContent = message;
     };
 
-    const issues = await searchAllIssuesWithChangelog(
-      siteJqls,
-      'summary,status,assignee,project,issuetype,parent,created,resolutiondate',
-      onProgress
-    );
+    const issueFields = 'summary,status,assignee,project,issuetype,parent,created,resolutiondate';
+
+    // Fetch current + previous month in parallel
+    const [issues, prevIssues] = await Promise.all([
+      searchAllIssuesWithChangelog(siteJqls, issueFields, onProgress),
+      prevSiteJqls.length > 0
+        ? searchAllIssuesWithChangelog(prevSiteJqls, issueFields)
+        : Promise.resolve([]),
+    ]);
 
     if (!issues.length) {
       results.innerHTML = `
@@ -494,10 +506,15 @@ async function generateReport() {
       lanes: computeLaneTimes(issue),
     }));
 
+    const prevLaneData = prevIssues.map(issue => ({
+      issue,
+      lanes: computeLaneTimes(issue),
+    }));
+
     // Store for export
     lastReportData = { laneData };
 
-    renderResults(laneData);
+    renderResults(laneData, prevLaneData);
 
     // Show export button
     if (exportBtn) {
@@ -565,7 +582,7 @@ function classifyStatus(statusName) {
 
 /* ── Render results with tabs ───────────────────── */
 
-function renderResults(laneData) {
+function renderResults(laneData, prevLaneData) {
   const results = document.getElementById('til-results');
 
   // Build a lookup: which accountIds belong to which selected user
@@ -595,11 +612,25 @@ function renderResults(laneData) {
     allTaskGroupsBySite.push({ ...group, taskGroups });
   }
 
+  // Build previous-month task groups (for comparison)
+  const prevSiteGroups = new Map();
+  (prevLaneData || []).forEach(d => {
+    const siteName = d.issue._site?.name || 'Default';
+    const siteUrl = d.issue._site?.url || '';
+    if (!prevSiteGroups.has(siteUrl)) prevSiteGroups.set(siteUrl, { siteName, siteUrl, items: [] });
+    prevSiteGroups.get(siteUrl).items.push(d);
+  });
+  const prevAllTaskGroupsBySite = [];
+  for (const [, group] of prevSiteGroups) {
+    const taskGroups = buildTaskGroups(group.items, group.items);
+    prevAllTaskGroupsBySite.push({ ...group, taskGroups });
+  }
+
   // Helper: filter task groups for a specific user
   // A task group shows under user X if the PARENT's assignee matches user X
-  function filterTaskGroupsForUser(userId) {
+  function filterTaskGroupsForUser(userId, taskGroupsBySite) {
     const filtered = [];
-    for (const sg of allTaskGroupsBySite) {
+    for (const sg of taskGroupsBySite) {
       const userGroups = sg.taskGroups.filter(tg => {
         const parentAssigneeId = tg.parent.issue?.fields?.assignee?.accountId;
         const resolvedUserId = parentAssigneeId ? accountIdToUserId.get(parentAssigneeId) : null;
@@ -616,24 +647,38 @@ function renderResults(laneData) {
   function computeStats(siteTaskGroups) {
     const avgLanes = { [LANE_TODO]: 0, [LANE_IN_PROGRESS]: 0, [LANE_IN_REVIEW]: 0 };
     let issueCount = 0;
+    const cycleTimes = [];
     siteTaskGroups.forEach(sg => {
       sg.taskGroups.forEach(tg => {
-        // Count subtasks (or parent itself if solo)
-        if (tg.subtasks.length > 0) {
-          tg.subtasks.forEach(st => {
-            LANE_ORDER.forEach(l => { avgLanes[l] += st.lanes[l]; });
-            issueCount++;
-          });
-        } else if (tg.parent.lanes) {
-          LANE_ORDER.forEach(l => { avgLanes[l] += tg.parent.lanes[l]; });
+        const items = tg.subtasks.length > 0 ? tg.subtasks : (tg.parent.lanes ? [tg.parent] : []);
+        items.forEach(item => {
+          LANE_ORDER.forEach(l => { avgLanes[l] += item.lanes[l]; });
+          cycleTimes.push(item.lanes[LANE_IN_PROGRESS] + item.lanes[LANE_IN_REVIEW]);
           issueCount++;
-        }
+        });
       });
     });
     if (issueCount > 0) {
       LANE_ORDER.forEach(l => { avgLanes[l] /= issueCount; });
     }
-    return { avgLanes, issueCount };
+
+    // Derived metrics
+    const avgCycleTime = avgLanes[LANE_IN_PROGRESS] + avgLanes[LANE_IN_REVIEW];
+    const avgLeadTime = avgLanes[LANE_TODO] + avgCycleTime;
+    const flowEfficiency = avgLeadTime > 0
+      ? (avgLanes[LANE_IN_PROGRESS] / avgLeadTime * 100).toFixed(1)
+      : 0;
+    const devPlusReview = avgLanes[LANE_IN_PROGRESS] + avgLanes[LANE_IN_REVIEW];
+    const reviewRatio = devPlusReview > 0
+      ? (avgLanes[LANE_IN_REVIEW] / devPlusReview * 100).toFixed(1)
+      : 0;
+
+    // Median & P90 cycle time
+    cycleTimes.sort((a, b) => a - b);
+    const medianCycleTime = cycleTimes.length > 0 ? cycleTimes[Math.floor(cycleTimes.length / 2)] : 0;
+    const p90CycleTime = cycleTimes.length > 0 ? cycleTimes[Math.floor(cycleTimes.length * 0.9)] : 0;
+
+    return { avgLanes, issueCount, avgCycleTime, flowEfficiency, reviewRatio, medianCycleTime, p90CycleTime };
   }
 
   // Build tabs
@@ -655,12 +700,14 @@ function renderResults(laneData) {
       </div>
       <!-- Tab Panels -->
       ${tabIds.map((id, i) => {
-        const userSiteGroups = id === 'all' ? allTaskGroupsBySite : filterTaskGroupsForUser(id);
-        const { avgLanes, issueCount } = computeStats(userSiteGroups);
+        const userSiteGroups = id === 'all' ? allTaskGroupsBySite : filterTaskGroupsForUser(id, allTaskGroupsBySite);
+        const stats = computeStats(userSiteGroups);
+        const prevUserSiteGroups = id === 'all' ? prevAllTaskGroupsBySite : filterTaskGroupsForUser(id, prevAllTaskGroupsBySite);
+        const prevStats = prevUserSiteGroups.length > 0 ? computeStats(prevUserSiteGroups) : null;
         const showAssigneeCol = id === 'all';
         return `
         <div class="wl-tab-panel ${i === 0 ? 'active' : ''}" data-panel="${id}">
-          ${renderStatCards(avgLanes, issueCount)}
+          ${renderStatCards(stats, prevStats)}
           ${renderLaneAccordionFromGroups(userSiteGroups, showAssigneeCol)}
         </div>`;
       }).join('')}
@@ -677,8 +724,9 @@ function renderResults(laneData) {
   } else {
     // Single user — no tabs
     const allStats = computeStats(allTaskGroupsBySite);
+    const prevAllStats = prevAllTaskGroupsBySite.length > 0 ? computeStats(prevAllTaskGroupsBySite) : null;
     results.innerHTML = `
-      ${renderStatCards(allStats.avgLanes, allStats.issueCount)}
+      ${renderStatCards(allStats, prevAllStats)}
       ${renderLaneAccordionFromGroups(allTaskGroupsBySite, false)}
     `;
   }
@@ -706,25 +754,110 @@ function wireAccordionToggles() {
   });
 }
 
-function renderStatCards(avgLanes, issueCount) {
+const INFO_ICON = `<svg class="stat-card-info-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`;
+
+const TREND_UP = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>`;
+const TREND_DOWN = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+/**
+ * Render a stat card with info tooltip and optional trend indicator.
+ * @param {string} label
+ * @param {string} value
+ * @param {string} tooltip
+ * @param {string} [hint]
+ * @param {{ pct: number, isInverse?: boolean }} [trend] — pct is % change, isInverse means lower is better
+ */
+function statCardWithInfo(label, value, tooltip, hint, trend) {
+  let trendHtml = '';
+  if (trend && isFinite(trend.pct) && trend.pct !== 0) {
+    const isUp = trend.pct > 0;
+    // For inverse metrics (time, cycle time), going up is bad (red), going down is good (green)
+    // For normal metrics (efficiency), going up is good (green)
+    const isPositive = trend.isInverse ? !isUp : isUp;
+    const cls = isPositive ? 'positive' : 'negative';
+    const arrow = isUp ? TREND_UP : TREND_DOWN;
+    const absPct = Math.abs(trend.pct).toFixed(0);
+    trendHtml = `<div class="stat-card-trend ${cls}">${arrow} ${absPct}%</div>`;
+  } else if (trend && trend.pct === 0) {
+    trendHtml = `<div class="stat-card-trend neutral">— no change</div>`;
+  }
+
+  return `
+    <div class="stat-card">
+      <div class="stat-card-header">
+        <div class="stat-card-label">${label}</div>
+        <div class="stat-card-info-wrapper">
+          ${INFO_ICON}
+          <div class="stat-card-tooltip">${tooltip}</div>
+        </div>
+      </div>
+      <div class="stat-card-value">${value}</div>
+      ${trendHtml}
+      ${hint ? `<div class="stat-card-hint">${hint}</div>` : ''}
+    </div>`;
+}
+
+/**
+ * Compute percentage change: ((cur - prev) / prev) * 100.
+ * Returns null if no previous data.
+ */
+function pctChange(cur, prev) {
+  if (prev == null || prev === 0) return cur > 0 ? 100 : null;
+  return ((cur - prev) / prev) * 100;
+}
+
+function renderStatCards(stats, prevStats) {
+  const { avgLanes, issueCount, avgCycleTime, flowEfficiency, reviewRatio, medianCycleTime, p90CycleTime } = stats;
+
+  // Build trend objects — null if no previous data
+  function trend(cur, prev, isInverse) {
+    if (prevStats == null) return null;
+    const delta = pctChange(cur, prev);
+    if (delta == null) return null;
+    return { pct: delta, isInverse };
+  }
+
+  const pTodo    = prevStats ? trend(avgLanes[LANE_TODO], prevStats.avgLanes[LANE_TODO], true) : null;
+  const pProg    = prevStats ? trend(avgLanes[LANE_IN_PROGRESS], prevStats.avgLanes[LANE_IN_PROGRESS], true) : null;
+  const pReview  = prevStats ? trend(avgLanes[LANE_IN_REVIEW], prevStats.avgLanes[LANE_IN_REVIEW], true) : null;
+  const pCount   = prevStats ? trend(issueCount, prevStats.issueCount, false) : null;
+  const pCycle   = prevStats ? trend(avgCycleTime, prevStats.avgCycleTime, true) : null;
+  const pFlow    = prevStats ? trend(parseFloat(flowEfficiency), parseFloat(prevStats.flowEfficiency), false) : null;
+  const pRR      = prevStats ? trend(parseFloat(reviewRatio), parseFloat(prevStats.reviewRatio), true) : null;
+  const pMedian  = prevStats ? trend(medianCycleTime, prevStats.medianCycleTime, true) : null;
+  const pP90     = prevStats ? trend(p90CycleTime, prevStats.p90CycleTime, true) : null;
+
   return `
     <div class="stat-grid mb-300">
-      <div class="stat-card">
-        <div class="stat-card-label">AVG IN TO DO</div>
-        <div class="stat-card-value">${formatMs(avgLanes[LANE_TODO])}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-label">AVG IN PROGRESS</div>
-        <div class="stat-card-value">${formatMs(avgLanes[LANE_IN_PROGRESS])}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-label">AVG IN REVIEW</div>
-        <div class="stat-card-value">${formatMs(avgLanes[LANE_IN_REVIEW])}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-label">ISSUES TRACKED</div>
-        <div class="stat-card-value">${issueCount}</div>
-      </div>
+      ${statCardWithInfo('AVG IN TO DO', formatMs(avgLanes[LANE_TODO]),
+        'How long issues sit in the backlog before anyone starts working on them. E.g. if this is 3 days, issues wait about 3 days after creation before work begins.',
+        null, pTodo)}
+      ${statCardWithInfo('AVG IN PROGRESS', formatMs(avgLanes[LANE_IN_PROGRESS]),
+        'How long issues are actively being worked on. E.g. if this is 5 days, it takes about 5 days of development time per issue on average.',
+        null, pProg)}
+      ${statCardWithInfo('AVG IN REVIEW', formatMs(avgLanes[LANE_IN_REVIEW]),
+        'How long issues spend waiting for or going through code review, QA, or testing. A high number may signal a review bottleneck.',
+        null, pReview)}
+      ${statCardWithInfo('ISSUES TRACKED', `${issueCount}`,
+        'Total number of issues included in this report for the selected users and date range.',
+        null, pCount)}
+    </div>
+    <div class="stat-grid stat-grid-5 mb-300">
+      ${statCardWithInfo('AVG CYCLE TIME', formatMs(avgCycleTime),
+        'Average time from when work starts to when it\u2019s done (In Progress + In Review). E.g. if this is 7 days, a typical issue takes about a week from start to finish.',
+        'In Progress + In Review', pCycle)}
+      ${statCardWithInfo('FLOW EFFICIENCY', `${flowEfficiency}%`,
+        'What percentage of total time is spent actively working vs. waiting. E.g. 80% means issues spend 80% of their life being worked on and only 20% waiting in To Do.',
+        'Active work \u00f7 total time', pFlow)}
+      ${statCardWithInfo('REVIEW RATIO', `${reviewRatio}%`,
+        'How much of the active cycle is spent in review vs. development. E.g. 30% means for every 7h of dev, there\u2019s about 3h of review time.',
+        'In Review \u00f7 (In Progress + In Review)', pRR)}
+      ${statCardWithInfo('MEDIAN CYCLE TIME', formatMs(medianCycleTime),
+        'The middle value when all cycle times are sorted. Unlike the average, this isn\u2019t skewed by one very slow issue. It shows what a \u201ctypical\u201d issue looks like.',
+        '50th percentile', pMedian)}
+      ${statCardWithInfo('P90 CYCLE TIME', formatMs(p90CycleTime),
+        '90% of issues finish faster than this. It shows your worst-case realistic delivery time. E.g. if P90 is 14 days, only 1 in 10 issues takes longer than 2 weeks.',
+        '90th percentile', pP90)}
     </div>
   `;
 }

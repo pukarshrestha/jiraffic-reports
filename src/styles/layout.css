@@ -364,6 +364,105 @@
   color: var(--ds-text);
 }
 
+.stat-card-hint {
+  font: var(--ds-font-body-small);
+  color: var(--ds-text-subtlest);
+  margin-top: var(--ds-space-050);
+}
+
+/* ── Trend indicator ─────────────────────────────── */
+.stat-card-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: var(--ds-font-body-small);
+  font-weight: var(--ds-font-weight-semibold);
+  margin-top: var(--ds-space-075);
+}
+
+.stat-card-trend.positive {
+  color: var(--ds-text-success);
+}
+
+.stat-card-trend.negative {
+  color: var(--ds-text-danger);
+}
+
+.stat-card-trend.neutral {
+  color: var(--ds-text-subtlest);
+  font-weight: var(--ds-font-weight-regular);
+}
+
+.stat-card-trend svg {
+  flex-shrink: 0;
+}
+
+/* ── Stat card header (label + info icon) ────────── */
+.stat-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-100);
+  margin-bottom: var(--ds-space-075);
+}
+
+.stat-card-header .stat-card-label {
+  margin-bottom: 0;
+}
+
+/* ── Info icon + tooltip ─────────────────────────── */
+.stat-card-info-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: help;
+}
+
+.stat-card-info-icon {
+  color: var(--ds-icon-subtle);
+  opacity: 0.5;
+  transition: opacity var(--ds-duration-fast) var(--ds-easing-standard),
+              color var(--ds-duration-fast) var(--ds-easing-standard);
+  flex-shrink: 0;
+}
+
+.stat-card-info-wrapper:hover .stat-card-info-icon {
+  opacity: 1;
+  color: var(--ds-icon);
+}
+
+.stat-card-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: -8px;
+  width: 260px;
+  padding: var(--ds-space-150);
+  background: var(--ds-surface-overlay);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--ds-radius-200);
+  box-shadow: var(--ds-shadow-overlay);
+  font: var(--ds-font-body-small);
+  color: var(--ds-text);
+  line-height: 1.5;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--ds-duration-fast) var(--ds-easing-standard),
+              transform var(--ds-duration-fast) var(--ds-easing-standard);
+}
+
+.stat-card-info-wrapper:hover .stat-card-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* ── 5-column stat grid ──────────────────────────── */
+.stat-grid-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 .stat-card-secondary {
   font: var(--ds-font-body-small);
   color: var(--ds-text-subtlest);
@@ -457,6 +556,10 @@
   .grid-3 {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .stat-grid-5 {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
@@ -490,7 +593,8 @@
     grid-template-columns: 1fr;
   }
 
-  .stat-grid {
+  .stat-grid,
+  .stat-grid-5 {
     grid-template-columns: repeat(2, 1fr);
   }
 }
