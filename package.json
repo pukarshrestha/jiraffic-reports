@@ -10,10 +10,8 @@
     "preview": "vite preview",
     "start": "NODE_ENV=production node server/index.js"
   },
-  "devDependencies": {
-    "vite": "^7.3.1"
-  },
   "dependencies": {
+    "vite": "^7.3.1",
     "chart.js": "^4.5.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
