@@ -16,11 +16,13 @@ import crypto from 'crypto';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const CLIENT_ID = process.env.ATLASSIAN_CLIENT_ID;
 const CLIENT_SECRET = process.env.ATLASSIAN_CLIENT_SECRET;
 const SESSION_SECRET = process.env.SESSION_SECRET || 'jiraffic-dev-secret';
-const CALLBACK_URL = 'http://localhost:5173/auth/callback';
+const CALLBACK_URL = process.env.CALLBACK_URL || 'http://localhost:5173/auth/callback';
+const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 const ATLASSIAN_AUTH_URL = 'https://auth.atlassian.com/authorize';
 const ATLASSIAN_TOKEN_URL = 'https://auth.atlassian.com/oauth/token';
@@ -33,7 +35,15 @@ const SCOPES = [
   'offline_access',
 ];
 
-app.use(cors({ origin: true, credentials: true }));
+// Trust proxy in production (Render, Railway, etc.) so req.secure works
+if (IS_PRODUCTION) {
+  app.set('trust proxy', 1);
+}
+
+app.use(cors({
+  origin: IS_PRODUCTION ? APP_URL : true,
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser(SESSION_SECRET));
 
@@ -283,11 +293,12 @@ app.get('/auth/callback', async (req, res) => {
         accounts: [newAccount],
       });
 
-      // Set session cookie (httpOnly, signed)
+      // Set session cookie (httpOnly, signed, secure in production)
       res.cookie('jiraffic-session', sessionId, {
         httpOnly: true,
         signed: true,
         sameSite: 'lax',
+        secure: IS_PRODUCTION,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       });
 
@@ -461,12 +472,32 @@ app.all('/api/jira/{*path}', async (req, res) => {
   }
 });
 
-// Health check
+/* ── Serve static files in production ───────────────── */
+
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Health check (register before SPA catch-all)
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+if (IS_PRODUCTION) {
+  const distPath = path.join(__dirname, '..', 'dist');
+  app.use(express.static(distPath));
+
+  // SPA fallback — serve index.html for any non-API/auth route
+  app.get('/{*path}', (req, res) => {
+    if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) return;
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
 app.listen(PORT, () => {
   console.log(`\n  🚀 Jira-ffic Reports server running on http://localhost:${PORT}`);
+  console.log(`  🔑 Mode: ${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'}`);
   console.log(`  🔐 OAuth callback: ${CALLBACK_URL}\n`);
 });
